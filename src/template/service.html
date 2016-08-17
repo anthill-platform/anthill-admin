@@ -1,0 +1,85 @@
+{% extends "header.html" %}
+
+{% block headers %}
+<link rel="stylesheet" href="/static/css/bootstrap-tagsinput.css">
+<link rel="stylesheet" href="/static/css/bootstrap-select.min.css">
+<link href="/static/css/jsoneditor.min.css" rel="stylesheet" type="text/css">
+<link href="/static/css/bootstrap-datetimepicker.min.css" rel="stylesheet" type="text/css">
+<link href="/static/css/bootstrap-switch.min.css" rel="stylesheet" type="text/css">
+
+<script src="/static/js/service.js"></script>
+<script src="/static/js/validator.min.js"></script>
+<script src="/static/js/moment.min.js"></script>
+<script src="/static/js/bootstrap-tagsinput.min.js"></script>
+<script src="/static/js/bootstrap-select.min.js"></script>
+<script src="/static/js/bootstrap-datetimepicker.min.js"></script>
+<script src="/static/js/bootstrap-switch.min.js"></script>
+<script src="/static/js/wsrpc.js"></script>
+<script src="/static/js/renderjson.js"></script>
+
+<script src="/static/js/jsoneditor.min.js"></script>
+<script type="text/javascript">var JsonEditor = JSONEditor</script>
+<script src="/static/js/dorneditor.js"></script>
+<script type="text/javascript">var DornEditor = JSONEditor</script>
+{% end %}
+
+
+{% block navbar %}
+
+{% import json %}
+{% import urllib %}
+
+<ul id="service-breadcrumbs" class="breadcrumb list-inline">
+    <li><a href="/service/{{ service_id }}/index">
+        <i class="fa fa-{{ metadata.get('icon', 'wrench') }}" aria-hidden="true"></i>
+        {{ metadata.get("title", service_id) }}</a>
+    </li>
+</ul>
+
+{% end %}
+
+{% block root %}
+
+{% import json %}
+
+<script type="text/javascript">
+    $(function()
+    {
+        var service_id = "{{ service_id }}";
+        var data = {% raw json.dumps(data, ensure_ascii=False) %};
+        var context = {% raw json.dumps(context) %};
+        var action = "{{ action }}";
+
+       init_service(service_id, action, data, context);
+    });
+</script>
+
+{% if notice %}
+    <script type="text/javascript">
+        $(function()
+        {
+            var notice = {% raw json.dumps(notice) %};
+
+            switch (notice["kind"])
+            {
+                case "info":
+                {
+                    notify_success(notice["message"]);
+
+                    break;
+                }
+                case "error":
+                {
+                    notify_error(notice["message"]);
+
+                    break;
+                }
+            }
+        });
+    </script>
+{% end %}
+
+<div id="root" class="container-fluid">
+</div>
+
+{% end %}

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>{% block title %}Anthill{% end %}</title>
+    <link rel="stylesheet" href="/static/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/font-awesome.min.css">
+    <link rel="stylesheet" href="/static/css/animate.css">
+    <script src="/static/js/jquery-2.1.4.min.js"></script>
+    <script src="/static/js/bootstrap.min.js"></script>
+    <script src="/static/js/js.cookie.js"></script>
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/favorite.js"></script>
+    <script src="/static/js/bootbox.min.js"></script>
+    <script src="/static/js/bootstrap-notify.min.js"></script>
+
+    {% block headers %}{% end %}
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+</head>
+<body>
+
+{% if (current_user is not None) and (current_user.profile is not None) %}
+    {% set name = current_user.profile["name"] %}
+    {% if "avatar" in current_user.profile %}
+        {% set avatar = current_user.profile["avatar"] %}
+    {% else %}
+        {% set avatar = None %}
+    {% end %}
+    {% set auth = True %}
+{% else %}
+    {% set auth = False %}
+{% end %}
+
+<nav class="navbar navbar-default">
+    <div class="container-fluid">
+        <!-- Brand and toggle get grouped for better mobile display -->
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse"
+                    data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand likes-list" href="/">
+                <span><img src="/static/images/logo.png" width="16" style="margin-top: -2px;"></span> Anthill
+            </a>
+        </div>
+
+        <!-- Collect the nav links, forms, and other content for toggling -->
+        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+
+            {% if auth %}
+
+            <ul class="nav navbar-nav like-heading">
+                {% block navbar %}
+                {% end %}
+            </ul>
+
+            {% end %}
+
+
+            {% if hasattr(handler, "gamespace_info") and handler.gamespace_info and "title" in handler.gamespace_info %}
+                {% set gamespace_title = handler.gamespace_info.get("title") %}
+            {% else %}
+                {% set gamespace_title = handler.gamespace %}
+            {% end %}
+
+
+            <ul class="nav navbar-nav navbar-right">
+
+                {% if auth %}
+
+                <li class="dropdown">
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown"
+                       role="button" aria-haspopup="true" aria-expanded="false">
+                        <i class="fa fa-user" aria-hidden="true"></i>
+                        {{ name }}
+                        {% set admin_scopes = sum(1 for scope in handler.token.scopes if scope.endswith('admin')) - 1 %}
+                        {% if admin_scopes > 0 %}
+                        <span class="label label-danger">{{ admin_scopes }}</span>
+                        {% end %}
+                        <span class="caret"></span></a>
+                    <ul class="dropdown-menu">
+                        {% if avatar %}
+                        <li align="center"><img src="{{ avatar }}" class="img-circle" width="100px"></li>
+                        <li role="separator" class="divider"></li>
+                        {% end %}
+
+
+                        <li class="menu-info" align="center" data-container="body" data-popover="true"
+                            data-trigger="hover" data-placement="left"
+                            data-content="Time this access will expire. ">
+
+                            {% import datetime, common.access %}
+                            {{ datetime.timedelta(seconds=handler.token.expiration_date - common.access.utc_time()) }}
+                            <br>
+                        </li>
+                        <li role="separator" class="divider"></li>
+                        <li>
+                            {% import urllib, json %}
+                            <a href="/service/profile/profile?{{ urllib.urlencode({'context': json.dumps({'account': handler.token.account})}) }}">
+                                <i class="fa fa-user-secret" aria-hidden="true"></i>
+                                Your profile
+                            </a>
+                        </li>
+                        {% if gamespace_title %}
+                        <li class="menu-info" data-container="body" data-popover="true"
+                            data-trigger="hover" data-placement="left"
+                            data-content="Gamespace you are working in. Press to switch.">
+                            <a href="/gamespace">
+                                <i class="fa fa-folder-o" aria-hidden="true"></i>
+                                {{ gamespace_title }}
+
+                            </a>
+                        </li>
+                        {% end %}
+                        <li role="separator" class="divider"></li>
+
+                        <li class="menu-info" align="center" data-container="body" data-popover="true"
+                            data-trigger="hover" data-placement="left"
+                            data-content="List of scopes this account has access to now. A lot of 'admin' scopes considered dangerous. ">
+                            {% for scope in handler.token.scopes %}
+                            <span class="label {{ 'label-danger' if scope.endswith('admin') else 'label-default' }}">{{ scope }}</span>
+                            {% end %}
+                        </li>
+
+                        <script type="application/javascript">
+                            $(".menu-info").popover();
+                        </script>
+
+                        <li role="separator" class="divider"></li>
+                        <li><a href="/debug"><i class="fa fa-terminal" aria-hidden="true"></i> Developer Console</a>
+                        </li>
+                        <li><a href="/logout"><i class="fa fa-sign-out" aria-hidden="true"></i> Log out</a></li>
+                    </ul>
+                </li>
+
+                {% end %}
+
+            </ul>
+        </div><!-- /.navbar-collapse -->
+    </div><!-- /.container-fluid -->
+</nav>
+
+{% block root2 %}
+{% block main %}{% end %}
+<div id="main" class="container" role="main">
+    {% block root %}{% end %}
+</div>
+{% end %}
+
+</body>
+</html>

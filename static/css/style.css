@@ -1,0 +1,59 @@
+.nav .breadcrumb {
+    margin: 0 7px;
+}
+@media (min-width: 768px) {
+    .nav .breadcrumb {
+        float: left;
+        margin: 7px 10px;
+    }
+}
+.btn-space {
+    margin-right: 5px;
+}
+
+.input-space
+{
+    margin: 4px;
+}
+
+.input-kv
+{
+    min-width: 150px;
+    text-align: left;
+}
+
+.th-notop
+{
+    border-top: 0 !important;
+}
+
+.tab-content {
+    border-left: 1px solid #ddd;
+    border-right: 1px solid #ddd;
+    border-bottom: 1px solid #ddd;
+    padding: 10px;
+    margin-bottom: 20px;
+}
+
+.nav-tabs {
+    margin-bottom: 0;
+}
+
+.padFix {
+    padding-top:8px;
+}
+
+.grayed-out
+{
+    opacity: 0;
+}
+
+.like-heading:hover .grayed-out
+{
+    opacity: 1 !important;
+}
+
+.list-group.like-group
+{
+    margin: 5px 0;
+}

@@ -1,0 +1,25 @@
+{% extends "header.html" %}
+
+{% block root %}
+
+<div align="center">
+    <form role="form" class="form-inline" method="POST">
+        <h3><i class="fa fa-folder-o" aria-hidden="true"></i> Select a gamespace to work with</h3>
+        <div class="well" style="width: 400px;">
+            <div class="form-group">
+                <select class="form-control" id="gamespace" name="gamespace" title="Gamespace">
+                {% for gamespace in gamespaces %}
+                    {% if gamespace["name"] == selected %}
+                        <option value="{{ gamespace['name'] }}" selected="selected">{{ gamespace["name"] }}</option>
+                    {% else %}
+                        <option value="{{ gamespace['name'] }}">{{ gamespace["name"] }}</option>
+                    {% end %}
+                {% end %}
+                </select>
+                <button type="submit" class="btn btn-primary">Proceed</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+{% end %}

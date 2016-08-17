@@ -1,0 +1,46 @@
+{% extends "header.html" %}
+
+{% block headers %}
+<link href="/static/css/sandbox.css" rel="stylesheet" />
+<script src="/static/js/js.cookie.js"></script>
+{% end %}
+
+{% block root %}
+
+<!-- The sandbox template -->
+<script type="text/template" id="tplSandbox">
+	<pre class="output"></pre>
+	<div class="input">
+		<textarea rows="1" id="console-input" placeholder="Type commands to interact with console. Type help for a list of commands."></textarea>
+	</div>
+</script>
+
+<!-- The command/result template (NB whitespace/line breaks matter inside <pre> tag): -->
+<script type="text/template" id="tplCommand"><% if (! _hidden) { %><span class="command"><%= command %></span>
+    <% if (result) { %><span class="prefix"><%= this.resultPrefix %></span><%= _class == "loading" ? '<img src="/static/images/loading.gif">' : ('<span class="' + _class + '">' + result + '</span>') %><% } %>
+
+<% } %></script>
+
+<div id="sandbox">...</div>
+
+<script src="/static/js/libs/underscore.min.js"></script>
+<script src="/static/js/libs/backbone.min.js"></script>
+<script src="/static/js/libs/backbone-localStorage.min.js"></script>
+<script src="/static/js/sandbox-console.js"></script>
+<script src="/static/js/console.js"></script>
+
+<script type="text/javascript">
+
+$(function($)
+{
+    window.sandbox = new Sandbox.View(
+    {
+        el : $('#sandbox'),
+        model : new Sandbox.Model()
+    });
+
+    console_init("{{ discovery_service }}", "{{ gamespace }}");
+});
+
+</script>
+{% end %}

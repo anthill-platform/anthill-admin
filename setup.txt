@@ -1,0 +1,23 @@
+post service=discovery url=@service/discovery/internal location=http://discovery-dev.anthill.internal
+post service=discovery url=@service/discovery/external location=http://discovery-dev.anthill.local
+post service=discovery url=@service/discovery/broker location=amqp://anthill:anthill@127.0.0.1:5672/dev
+
+post service=discovery url=@service/login/internal location=http://login-dev.anthill.internal
+post service=discovery url=@service/login/external location=http://login-dev.anthill.local
+post service=discovery url=@service/login/broker location=amqp://anthill:anthill@127.0.0.1:5672/dev
+
+post service=discovery url=@service/admin/internal location=http://admin-dev.anthill.internal
+post service=discovery url=@service/admin/external location=http://admin-dev.anthill.local
+post service=discovery url=@service/admin/broker location=amqp://anthill:anthill@127.0.0.1:5672/dev
+
+post service=discovery url=@service/social/internal location=http://social-dev.anthill.internal
+post service=discovery url=@service/social/external location=http://social-dev.anthill.local
+post service=discovery url=@service/social/broker location=amqp://anthill:anthill@127.0.0.1:5672/dev
+
+post service=discovery url=@service/profile/internal location=http://profile-dev.anthill.internal
+post service=discovery url=@service/profile/external location=http://profile-dev.anthill.local
+post service=discovery url=@service/profile/broker location=amqp://anthill:anthill@127.0.0.1:5672/dev
+
+post service=discovery url=@service/environment/internal location=http://environment-dev.anthill.internal
+post service=discovery url=@service/environment/external location=http://environment-dev.anthill.local
+post service=discovery url=@service/environment/broker location=amqp://anthill:anthill@127.0.0.1:5672/dev

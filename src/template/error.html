@@ -1,0 +1,23 @@
+{% extends "header.html" %}
+
+{% block root %}
+
+{% import json %}
+
+<div class="panel panel-danger">
+    <div class="panel-heading">
+        <h3 class="panel-title">
+            <i class="fa fa-warning" aria-hidden="true"></i> Unfortunately, an error occurred
+        </h3>
+    </div>
+    <div class="panel-body">
+        {{ title }} <br>
+        {% raw description.replace("\n", "<br>") %}
+    </div>
+    <div class="panel-footer">
+        <a href="/" class="btn btn-primary">Dashboard</a>
+    </div>
+</div>
+
+
+{% end %}
