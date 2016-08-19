@@ -237,7 +237,7 @@ class ServiceAPIHandler(AuthenticatedHandler):
 
             raise HTTPError(e.code, e.body)
 
-        self.write(ujson.dumps(data))
+        self.dumps(data)
 
     @coroutine
     @scoped(scopes=["admin"])
@@ -312,7 +312,7 @@ class ServiceAPIHandler(AuthenticatedHandler):
 
             raise HTTPError(e.code, e.body)
 
-        self.write(ujson.dumps(data))
+        self.dumps(data)
 
 
 class ServiceAdminHandler(AdminHandler):
