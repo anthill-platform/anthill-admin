@@ -89,10 +89,10 @@ class Terminal(object):
             try:
                 key, value = arg.split("=")
             except ValueError:
-                raise Exception("Arguments should be key=value pairs")
-
-            if key and value:
-                kv[key] = value
+                a.append(arg)
+            else:
+                if key:
+                    kv[key] = value
 
         if hasattr(self, "cmd_" + command):
             yield getattr(self, "cmd_" + command)(*a, **kv)
@@ -171,6 +171,34 @@ class Terminal(object):
             "The format goes as follows: [command] [command arguments]",
             ""
         ])
+
+    @coroutine
+    def cmd_set_discovery(self, service, **kwargs):
+
+        result = {}
+
+        for network, location in kwargs.iteritems():
+            try:
+                yield self.internal.post(
+                    "discovery", "@service/{0}/{1}".format(service, network),
+                    {
+                        "location": location
+                    })
+            except InternalError as e:
+                res = str(e.code) + ": " + e.body
+            else:
+                res = "OK"
+
+            result[network] = res
+
+        yield self.log("Result:")
+        yield self.log("")
+        yield self.log(ujson.dumps(result, indent=4, escape_forward_slashes=False))
+        yield self.log("")
+
+    def cmd_set_scopes(self, credential, gamespace, scopes):
+        return self.cmd_request(service="login", method="set_scopes",
+                                credential=credential, gamespace=gamespace, scopes=scopes)
 
     @coroutine
     def setup(self):
