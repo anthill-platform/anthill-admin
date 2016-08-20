@@ -253,7 +253,7 @@ commands = {
                                 window.location.href = service_location + '/authform?scopes=' +
                                     encodeURIComponent(scopes) + '&gamespace=' + encodeURIComponent(gamespace) +
                                     '&attach_to=' + encodeURIComponent(token) + '&redirect=' +
-                                    encodeURIComponent(window.location.origin + "/authcallback?after=" +
+                                    encodeURIComponent(window.location.origin + "/callback?after=" +
                                         encodeURIComponent(window.location.pathname)) +
                                     '&should_have=' + encodeURIComponent(should_have);
 
