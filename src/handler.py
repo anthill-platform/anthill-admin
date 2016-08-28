@@ -611,8 +611,8 @@ class ServiceWSHandler(CookieAuthenticatedWSHandler):
                     logging.info("Redirecting admin stream to " + destination)
 
                 else:
-                    raise HTTPError(e.code, "Failed to connect to service {0} ({1}): {2}.".format(
-                         service_id, destination, e.message))
+                    raise HTTPError(e.code, "Failed to connect to service {0} ({1}): {2} {3}.".format(
+                         service_id, destination, e.message, e.response.body if e.response else ""))
             else:
                 break
 

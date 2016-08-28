@@ -316,7 +316,9 @@ function WebSocketJsonRPC(url)
 
 function ServiceJsonRPC(service, action, context)
 {
-    return new WebSocketJsonRPC("ws://" +
+    var proto = location.protocol == "https:" ? "wss:" : "ws:";
+
+    return new WebSocketJsonRPC(proto + "//" +
         location.hostname + "/ws/service?service=" + SERVICE +
         "&action=" + action +
         "&context=" + encodeURIComponent(JSON.stringify(context)));

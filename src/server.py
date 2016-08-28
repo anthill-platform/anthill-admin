@@ -66,6 +66,8 @@ class AdminServer(common.server.Server):
 
         if self.external_auth_location is None:
             logging.error("Failed to locate auth 'external'.")
+        else:
+            logging.info("Located auth service: " + self.external_auth_location)
 
 
 if __name__ == "__main__":
