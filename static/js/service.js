@@ -322,6 +322,30 @@ RENDERERS = {
             {
                 return $('<input type="file" class="form-control" id="' + name + '" name="' + name + '">');
             },
+            code: function(name, value, data)
+            {
+                var parent = $('<div></div>');
+
+                var height = data.height || 500;
+
+                var e = $('<div class="well" style="background: none; height: ' + height + 'px;"></div>').appendTo(parent);
+                var d = $('<input type="hidden" name="' + name + '" value=""/><br>').appendTo(parent);
+
+
+                var flask = new CodeFlask;
+                flask.scaffold(e[0], false, { language: 'javascript' });
+
+                flask.update(value);
+
+                flask.onUpdate(function(code)
+                {
+                   d.val(code);
+                });
+
+                d.val(value);
+
+                return parent;
+            },
             json: function(name, value, data)
             {
                 var parent = $('<div></div>');
