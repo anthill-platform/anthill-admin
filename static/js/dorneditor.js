@@ -2718,6 +2718,16 @@ JSONEditor.defaults.editors.object = JSONEditor.AbstractEditor.extend({
       });
       this.title_controls.appendChild(this.addproperty_button);
       this.title_controls.appendChild(this.addproperty_holder);
+
+      // Edit JSON Buttton disabled
+      if(this.schema.options && typeof this.schema.options.disable_properties !== "undefined") {
+        if(this.schema.options.disable_properties) this.addproperty_button.style.display = 'none';
+      }
+      else if(this.jsoneditor.options.disable_properties) {
+        this.addproperty_button.style.display = 'none';
+      }
+
+
       this.refreshAddProperties();
     }
     
