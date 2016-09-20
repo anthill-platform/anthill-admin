@@ -616,12 +616,8 @@ class ServiceWSHandler(CookieAuthenticatedWSHandler):
             else:
                 break
 
-    def open(self, *args, **kwargs):
-        tornado.ioloop.IOLoop.current().spawn_callback(self.connected)
-
     @coroutine
-    def connected(self):
-
+    def opened(self, *args, **kwargs):
         for msg in self.buffer:
             self.conn.write_message(msg)
 
@@ -645,7 +641,8 @@ class ServiceWSHandler(CookieAuthenticatedWSHandler):
         else:
             self.buffer.append(message)
 
-    def on_close(self):
+    @coroutine
+    def closed(self):
         if self.conn is not None:
             self.conn.close()
 
