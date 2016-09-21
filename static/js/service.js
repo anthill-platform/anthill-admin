@@ -206,8 +206,9 @@ RENDERERS = {
             {
                 var row  = $('<div class="form-group"></div>');
                 var checked = value == 'true';
+                var readonly = data["readonly"];
                 $('<input type="checkbox" class="switch" id="' + name + '" name="' + name + '" ' +
-                    'value="true" ' + (checked ? 'checked' : '') + '>').appendTo(row);
+                    'value="true"' + (checked ? ' checked' : '') + (readonly ? ' readonly' : '') + '>').appendTo(row);
                 return row;
             },
             date: function(name, value, data)
