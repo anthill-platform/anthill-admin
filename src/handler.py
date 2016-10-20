@@ -4,6 +4,7 @@ import ujson
 import traceback
 import base64
 import logging
+from urlparse import urlsplit
 
 import tornado.websocket
 import tornado.httpclient
@@ -602,7 +603,10 @@ class ServiceWSHandler(CookieAuthenticatedWSHandler):
                     host = data["host"]
                     context = data["context"]
 
-                    destination = "ws://" + host + "/@stream_admin?" + urllib.urlencode({
+                    parsed = urlsplit(host)
+                    protocol = "wss" if parsed.scheme == "https" else "ws"
+
+                    destination = protocol + "://" + parsed.netloc + parsed.path + "/@stream_admin?" + urllib.urlencode({
                         "context": context,
                         "action": action,
                         "access_token": self.token.key
