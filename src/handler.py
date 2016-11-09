@@ -24,6 +24,7 @@ from common import cached
 from common.access import scoped, AccessToken, parse_scopes
 from common.internal import InternalError
 from common.discover import DiscoveryError
+from common.options import options
 
 
 class AdminAuthCallbackHandler(AuthCallbackHandler):
@@ -73,7 +74,7 @@ class AdminHandler(CookieAuthenticatedHandler):
         self.render(
             "template/error.html",
             title=status_code,
-            description=traceback.format_exc())
+            description=traceback.format_exc() if options.debug else traceback.format_exc(0))
 
     def external_auth_location(self):
         return self.application.external_auth_location
@@ -435,7 +436,15 @@ class ServiceAdminHandler(AdminHandler):
         }
 
         for field_name, data in self.request.files.iteritems():
-            arguments[field_name] = base64.b64encode(data[0]["body"])
+
+            files = {
+                f["filename"]: base64.b64encode(f["body"])
+                for f in data
+            }
+
+            arguments[field_name] = {
+                "@files": files
+            }
 
         try:
             context = arguments.pop("context")
