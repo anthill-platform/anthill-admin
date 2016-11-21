@@ -20,7 +20,7 @@
 <body>
 
 {% if (current_user is not None) and (current_user.profile is not None) %}
-    {% set name = current_user.profile["name"] %}
+    {% set name = current_user.profile["name"] if "name" in current_user.profile else "Unknown" %}
     {% if "avatar" in current_user.profile %}
         {% set avatar = current_user.profile["avatar"] %}
     {% else %}

@@ -46,6 +46,7 @@ class AdminServer(common.server.Server):
             (r"/gamespace", handler.SelectGamespaceHandler),
 
             (r"/ws/service", handler.ServiceWSHandler),
+            (r"/service/upload", handler.ServiceUploadAdminHandler),
             (r"/service/([\w-]+)/([\w-]*)", handler.ServiceAdminHandler),
             (r"/api", handler.ServiceAPIHandler),
 

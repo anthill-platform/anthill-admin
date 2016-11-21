@@ -11,6 +11,10 @@
     margin-right: 5px;
 }
 
+.btn-double-space {
+    margin-right: 16px;
+}
+
 .input-space
 {
     margin: 4px;
@@ -56,4 +60,32 @@
 .list-group.like-group
 {
     margin: 5px 0;
+}
+
+.full-screen-ready
+{
+}
+
+.full-screen-ready:-webkit-full-screen {
+    width: 100vw !important;
+    height: 100vh !important;
+    background: #ffffff !important;
+}
+
+.full-screen-ready:-moz-full-screen {
+    width: 100vw !important;
+    height: 100vh !important;
+    background: #ffffff !important;
+}
+
+.full-screen-ready:-ms-fullscreen {
+    width: 100vw !important;
+    height: 100vh !important;
+    background: #ffffff !important;
+}
+
+.full-screen-ready:fullscreen {
+    width: 100vw !important;
+    height: 100vh !important;
+    background: #ffffff !important;
 }

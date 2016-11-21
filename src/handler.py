@@ -10,8 +10,11 @@ import tornado.websocket
 import tornado.httpclient
 import tornado.ioloop
 
-from tornado.gen import coroutine, Return
-from tornado.web import HTTPError
+from tornado.gen import coroutine, Return, Future
+from tornado.web import HTTPError, stream_request_body, RequestHandler
+from tornado.httpclient import AsyncHTTPClient, HTTPRequest
+from tornado.ioloop import IOLoop
+from tornado.queues import Queue
 
 from common.handler import AuthCallbackHandler, AuthenticatedHandler
 from common.handler import CookieAuthenticatedHandler, CookieAuthenticatedWSHandler
@@ -19,6 +22,7 @@ from common.handler import CookieAuthenticatedHandler, CookieAuthenticatedWSHand
 import common.access
 import common.discover
 import common.admin
+import common.discover
 
 from common import cached
 from common.access import scoped, AccessToken, parse_scopes
@@ -250,9 +254,6 @@ class ServiceAPIHandler(AuthenticatedHandler):
             for k in self.request.arguments
         }
 
-        for field_name, data in self.request.files.iteritems():
-            arguments[field_name] = base64.b64encode(data[0]["body"])
-
         try:
             context = arguments.pop("context")
             method = arguments.pop("method")
@@ -315,6 +316,109 @@ class ServiceAPIHandler(AuthenticatedHandler):
             raise HTTPError(e.code, e.body)
 
         self.dumps(data)
+
+
+@stream_request_body
+class ServiceUploadAdminHandler(AdminHandler):
+    def __init__(self, application, request, **kwargs):
+        super(ServiceUploadAdminHandler, self).__init__(application, request, **kwargs)
+
+        self.chunks = Queue(10)
+        self.client = None
+        self.send_complete = Future()
+        self.content_length = None
+        self.filename = ""
+        self.bytes_received = 0
+        self.context = {}
+
+    @coroutine
+    def __producer__(self, write):
+        while True:
+            chunk = yield self.chunks.get()
+            if chunk is None:
+                return
+            yield write(chunk)
+
+    @coroutine
+    def data_received(self, chunk):
+        self.bytes_received += len(chunk)
+        yield self.chunks.put(chunk)
+
+    def write_error(self, status_code, **kwargs):
+        RequestHandler.write_error(self, status_code, **kwargs)
+
+    @coroutine
+    def upload(self, service_location, action):
+        self.client = AsyncHTTPClient()
+
+        request = HTTPRequest(
+            url=service_location + "/@admin_upload?" + urllib.urlencode({
+                "action": action,
+                "access_token": self.token.key,
+                "context": ujson.dumps(self.context)
+            }),
+            method="PUT",
+            body_producer=self.__producer__,
+            headers={
+                "Content-Length": self.content_length,
+                "X-File-Name": self.filename
+            },
+            request_timeout=2400)
+
+        try:
+            response = yield self.client.fetch(request)
+        except Exception as e:
+            self.send_complete.set_exception(e)
+        else:
+            self.send_complete.set_result(response)
+
+    @coroutine
+    def prepared(self):
+
+        service_id = self.get_argument("service_id")
+        action = self.get_argument("action")
+
+        context = self.get_argument("context", "{}")
+
+        try:
+            self.context = ujson.loads(context)
+        except (KeyError, ValueError):
+            raise HTTPError(400, "Bad context field.")
+
+        self.filename = self.request.headers.get("X-File-Name", "")
+        self.content_length = self.request.headers.get("Content-Length")
+
+        if not self.content_length:
+            raise HTTPError(400, "No content-length")
+
+        try:
+            service_location = yield common.discover.cache.get_service(service_id)
+        except common.discover.DiscoveryError as e:
+            raise HTTPError(404, "Failed to discover '{0}': ".format(service_id) + e.message)
+
+        IOLoop.current().spawn_callback(self.upload, service_location, action)
+
+    @coroutine
+    @scoped(scopes=["admin"], method="access_restricted", ask_also=["profile", "profile_write"])
+    def put(self):
+
+        if str(self.bytes_received) != str(self.content_length):
+            raise HTTPError(400, "Did not receive data as expected")
+
+        yield self.chunks.put(None)
+
+        try:
+            response = yield self.send_complete
+        except tornado.httpclient.HTTPError as e:
+            self.set_status(e.code, e.message)
+            self.finish(e.response.body if e.response else None)
+        else:
+            self.dumps(response)
+
+    @coroutine
+    def prepare(self):
+        self.request.connection.set_max_body_size(1073741824)
+        yield super(ServiceUploadAdminHandler, self).prepare()
 
 
 class ServiceAdminHandler(AdminHandler):
@@ -434,17 +538,6 @@ class ServiceAdminHandler(AdminHandler):
             k: self.get_argument(k)
             for k in self.request.arguments
         }
-
-        for field_name, data in self.request.files.iteritems():
-
-            files = {
-                f["filename"]: base64.b64encode(f["body"])
-                for f in data
-            }
-
-            arguments[field_name] = {
-                "@files": files
-            }
 
         try:
             context = arguments.pop("context")

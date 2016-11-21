@@ -85,6 +85,116 @@ RENDERERS = {
         }
     },
 
+
+    file_upload: {
+        render: function(data)
+        {
+            var panel = $('<div class="panel panel-default"><div class="panel-heading">' + data.title + '</div></div>');
+            var body = $('<div class="panel-body"></div>').appendTo(panel);
+
+            var div = $('<div><a class="btn btn-default btn-double-space">' +
+                '<i class="fa fa-upload" aria-hidden="true"></i> Upload file</a></div>').appendTo(body);
+
+            var status = $('<span></span>').appendTo(div);
+
+            var action = data.action.length > 0 ? data.action : ACTION;
+
+            var btn = div.find("a")[0];
+
+            $(function()
+            {
+                 var uploader = new ss.SimpleUpload({
+                    button: btn,
+                    url: '/service/upload?context=' +
+                        encodeURIComponent(JSON.stringify(CONTEXT)) + '&service_id=' + SERVICE +
+                        '&action=' + action,
+                    method: 'put', responseType: 'json', multipart: false,
+
+                    onSubmit: function()
+                    {
+                        status.html('<i class="fa fa-refresh fa-spin" aria-hidden="true"></i> Uploading <span></span>...');
+                    },
+                    onProgress: function(pct)
+                    {
+                        status.find('span').html(pct + '%');
+                    },
+                    onComplete: function( filename, response )
+                    {
+                        status.html('<span class="text-success">' +
+                            '<i class="fa fa-check" aria-hidden="true"></i> Uploaded</span>');
+                    },
+                    onError: function(filename, response, code, error, body)
+                    {
+                        switch (code)
+                        {
+                            case 445:
+                            {
+                                notify_error("Error uploading file: " + body);
+                                status.html('<span class="text-danger">' +
+                                    '<i class="fa fa-warning" aria-hidden="true"></i> ' + body + '</span>');
+
+                                break;
+                            }
+                            case 444:
+                            {
+                                var body = JSON.parse(body);
+
+                                if (body.notice != null)
+                                {
+                                    Cookies.set("notice", btoa(JSON.stringify({
+                                        "kind": "info",
+                                        "message": body.notice
+                                    })));
+                                }
+
+                                var to = body["redirect-to"];
+                                var ctx = body["context"];
+
+                                document.location.href = '/service/' + SERVICE + '/' + to +
+                                    '?context=' + encodeURIComponent(JSON.stringify(ctx));
+
+                                break;
+                            }
+                            default:
+                            {
+                                notify_error("Error uploading file: " + error);
+                                status.html('<span class="text-danger">' +
+                                    '<i class="fa fa-warning" aria-hidden="true"></i> ' + error + '</span>');
+                            }
+                        }
+
+                    }
+                 });
+            });
+
+            return panel;
+        }
+    },
+
+    link: {
+        render: function(data)
+        {
+            var div = $('<ul class="nav nav-pills"></ul>');
+            div.append(render_link(data));
+            return div;
+        }
+    },
+    status: {
+        render: function(data)
+        {
+            var div = $('<div></div>');
+
+            var icon = data.icon;
+            var style = data.style || "primary";
+
+            $('<span class="label label-' + style + '">' +
+                (icon != null ? ('<i class="fa fa-' + icon + '" aria-hidden="true"></i> ') : '') +
+                data.title + '</span>').appendTo(div);
+
+            return div;
+        }
+    },
+
     button: {
         render: function(data)
         {
@@ -134,10 +244,11 @@ RENDERERS = {
             var panel = $('<div class="panel panel-default"><div class="panel-heading">' + data.title + '</div></div>');
             var body = $('<div class="panel-body"></div>').appendTo(panel);
 
-            var table = $('<table class="table"></table>').appendTo(body);
+            var table = $('<table class="table table-striped"></table>').appendTo(body);
 
             var headers = data["headers"];
             var items = data["items"];
+            var context = data["context"];
 
             var process_item = function(d)
             {
@@ -153,7 +264,10 @@ RENDERERS = {
                 return $('<span>' + d + '</span>');
             };
 
-            var tr = $('<tr></tr>').appendTo(table);
+            var thead = $('<thead></thead>').appendTo(table);
+            var tbody = $('<tbody></tbody>').appendTo(table);
+
+            var tr = $('<tr></tr>').appendTo(thead);
             for (var i in headers)
             {
                 var header = headers[i];
@@ -168,20 +282,29 @@ RENDERERS = {
                 td.append(process_item(header["title"]));
             }
 
-            for (var it in items)
+            if (items.length > 0)
             {
-                var item = items[it];
-
-                tr = $('<tr></tr>').appendTo(table);
-                for (i in headers)
+                for (var it in items)
                 {
-                    var h = headers[i];
-                    var id = h["id"];
+                    var item = items[it];
 
-                    td = $('<td nowrap="nowrap"></td>').appendTo(tr);
-                    td.append(process_item(item[id]));
+                    tr = $('<tr></tr>').appendTo(tbody);
+                    for (i in headers)
+                    {
+                        var h = headers[i];
+                        var id = h["id"];
+
+                        td = $('<td nowrap="nowrap" style="vertical-align: middle;"></td>').appendTo(tr);
+                        td.append(process_item(item[id]));
+                    }
                 }
             }
+            else
+            {
+                tbody.append('<tr><td colspan="100">' +
+                    '<h4 align="center">' + (context["empty"] || "No items to display") + '</h4></td></tr>');
+            }
+
 
             //var items = data["items"];
             //render(bodyContent, items);
@@ -201,6 +324,14 @@ RENDERERS = {
 
                 return $('<input type="text" class="form-control" id="' + name + '" name="' + name + '" value="' + value +
                     '">');
+            },
+            status: function(name, value, data)
+            {
+                return RENDERERS["status"].render({
+                    title: value,
+                    icon: data.icon,
+                    style: data.style
+                });
             },
             switch: function(name, value, data)
             {
@@ -327,14 +458,38 @@ RENDERERS = {
             {
                 var parent = $('<div></div>');
 
+                var fullscreen = $('<ul class="nav nav-pills" style="position: absolute; ' +
+                    ' margin-left: -72px;"><li role="presentation"><a href="#">' +
+                    '<i class="fa fa-arrows-alt" aria-hidden="true"></i></a></li></ul>').appendTo(parent);
+
                 var height = data.height || 500;
 
-                var e = $('<div class="well" style="background: none; height: ' + height + 'px;"></div>').appendTo(parent);
-                var d = $('<input type="hidden" name="' + name + '" value=""/><br>').appendTo(parent);
+                var e = $('<div class="well full-screen-ready" style="background: none; height: ' + height + 'px;"></div>').appendTo(parent);
+                var d = $('<input type="hidden" name="' + name + '" value=""/>').appendTo(parent);
 
+                var buttons = $('<div></div>').appendTo(parent);
 
+                var target = e[0];
                 var flask = new CodeFlask;
-                flask.scaffold(e[0], false, { language: 'javascript' });
+                flask.scaffold(target, false, { language: 'javascript' });
+
+                fullscreen.click(function()
+                {
+                    var element = target;
+
+                    if (element.requestFullscreen) {
+                      element.requestFullscreen();
+                    } else if (element.mozRequestFullScreen) {
+                      element.mozRequestFullScreen();
+                    } else if (element.webkitRequestFullscreen) {
+                      element.webkitRequestFullscreen(Element.ALLOW_KEYBOARD_INPUT);
+                    } else if (element.msRequestFullscreen) {
+                      element.msRequestFullscreen();
+                    }
+
+                    return false;
+                });
+
 
                 flask.update(value);
 
@@ -354,7 +509,7 @@ RENDERERS = {
                 var height = data.height || 500;
 
                 var e = $('<div style="height: ' + height + 'px;"></div>').appendTo(parent);
-                var d = $('<input type="hidden" name="' + name + '" value=""/><br>').appendTo(parent);
+                var d = $('<input type="hidden" name="' + name + '" value=""/>').appendTo(parent);
 
                 // create the editor
                 var container = e[0];
@@ -551,7 +706,12 @@ RENDERERS = {
                         this.validators[validation](f);
                     }
 
-                    var node = $('<div class="form-group"> <label for="' + name + '"> ' + title + ' </label> </div>');
+                    var node = $('<div class="form-group"></div>');
+
+                    if (title.length > 0)
+                    {
+                        $('<label for="' + name + '">' + title + '</label>').appendTo(node);
+                    }
 
                     node.append(f);
                     body.append(node).append(" ");
@@ -697,53 +857,8 @@ RENDERERS = {
             {
                 for (var i in links)
                 {
-                    var link = links[i];
-                    var url;
-                    var context = link.context;
-                    var icon = link.icon;
-                    var additional = '';
-                    var badge = link.badge;
-
-                    if (link.url.startsWith("http"))
-                    {
-                        url = link.url;
-
-                        additional = ' <span class="badge">external</span>';
-                    }
-                    else
-                    {
-                        var m = link.url.match(/\/(\w+)\/(.+)/i);
-                        if (m != null)
-                        {
-                            url = '/service/' + m[1] + '/' + m[2] +
-                                (link.context != null ? '?context=' +
-                                encodeURIComponent(JSON.stringify(link.context)) : '');
-
-                            additional = ' <span class="badge">' + m[1] + '</span>';
-                        }
-                        else if (link.url == '@back')
-                        {
-                            url = 'javascript:history.back()';
-                        }
-                        else
-                        {
-                            url = '/service/' + SERVICE + '/' + link.url +
-                                (link.context != null ? '?context=' +
-                                encodeURIComponent(JSON.stringify(link.context)) : '');
-                        }
-                    }
-                    
-                    if (additional == '')
-                    {
-                        if (badge != undefined)
-                        {
-                            additional = ' <span class="badge">' + badge + '</span>';
-                        }
-                    }
-
-                    $('<li role="presentation"><a href="' + url + '">' +
-                        (icon != null ? ('<i class="fa fa-' + icon + '" aria-hidden="true"></i> ') : '') +
-                        link.title + additional + '</a></li>').appendTo(pills);
+                    var link = render_link(links[i]);
+                    link.appendTo(pills);
                 }
             }
             else
@@ -769,6 +884,55 @@ function render_node(node, appendTo)
     }
 }
 
+function render_link(link)
+{
+    var url;
+    var context = link.context;
+    var icon = link.icon;
+    var additional = '';
+    var badge = link.badge;
+
+    if (link.url.startsWith("http"))
+    {
+        url = link.url;
+
+        additional = ' <span class="badge">external</span>';
+    }
+    else
+    {
+        var m = link.url.match(/\/(\w+)\/(.+)/i);
+        if (m != null)
+        {
+            url = '/service/' + m[1] + '/' + m[2] +
+                (link.context != null ? '?context=' +
+                encodeURIComponent(JSON.stringify(link.context)) : '');
+
+            additional = ' <span class="badge">' + m[1] + '</span>';
+        }
+        else if (link.url == '@back')
+        {
+            url = 'javascript:history.back()';
+        }
+        else
+        {
+            url = '/service/' + SERVICE + '/' + link.url +
+                (link.context != null ? '?context=' +
+                encodeURIComponent(JSON.stringify(link.context)) : '');
+        }
+    }
+
+    if (additional == '')
+    {
+        if (badge != undefined)
+        {
+            additional = ' <span class="badge">' + badge + '</span>';
+        }
+    }
+
+    return $('<li role="presentation"><a href="' + url + '">' +
+        (icon != null ? ('<i class="fa fa-' + icon + '" aria-hidden="true"></i> ') : '') +
+        link.title + additional + '</a></li>');
+}
 
 function render(root, data)
 {
