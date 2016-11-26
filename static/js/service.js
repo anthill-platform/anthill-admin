@@ -106,7 +106,7 @@ RENDERERS = {
                  var uploader = new ss.SimpleUpload({
                     button: btn,
                     url: '/service/upload?context=' +
-                        encodeURIComponent(JSON.stringify(CONTEXT)) + '&service_id=' + SERVICE +
+                        encodeURIComponent(JSON.stringify(CONTEXT)) + '&service=' + SERVICE +
                         '&action=' + action,
                     method: 'put', responseType: 'json', multipart: false,
 

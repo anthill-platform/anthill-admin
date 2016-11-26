@@ -375,9 +375,8 @@ class ServiceUploadAdminHandler(AdminHandler):
     @coroutine
     def prepared(self):
 
-        service_id = self.get_argument("service_id")
+        service_id = self.get_argument("service")
         action = self.get_argument("action")
-
         context = self.get_argument("context", "{}")
 
         try:
