@@ -373,7 +373,7 @@ class ServiceUploadAdminHandler(AdminHandler):
             self.send_complete.set_result(response)
 
     @coroutine
-    def prepared(self):
+    def prepared(self, *args, **kwargs):
 
         service_id = self.get_argument("service")
         action = self.get_argument("action")
@@ -652,7 +652,7 @@ class ServiceWSHandler(CookieAuthenticatedWSHandler):
         logging.error(reason)
 
     @coroutine
-    def prepared(self):
+    def prepared(self, *args, **kwargs):
         yield super(ServiceWSHandler, self).prepared()
 
         service_id = self.get_argument("service")

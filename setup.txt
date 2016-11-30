@@ -1,6 +1,6 @@
-set_discovery discovery internal=http://discovery-dev.anthill.internal external=http://discovery-dev.anthill.local broker=amqp://anthill:anthill@127.0.0.1:5672/dev
-set_discovery login internal=http://login-dev.anthill.internal external=http://login-dev.anthill.local broker=amqp://anthill:anthill@127.0.0.1:5672/dev
-set_discovery admin internal=http://admin-dev.anthill.internal external=http://admin-dev.anthill.local broker=amqp://anthill:anthill@127.0.0.1:5672/dev
-set_discovery social internal=http://social-dev.anthill.internal external=http://social-dev.anthill.local broker=amqp://anthill:anthill@127.0.0.1:5672/dev
-set_discovery profile internal=http://profile-dev.anthill.internal external=http://profile-dev.anthill.local broker=amqp://anthill:anthill@127.0.0.1:5672/dev
-set_discovery environment internal=http://environment-dev.anthill.internal external=http://environment-dev.anthill.local broker=amqp://anthill:anthill@127.0.0.1:5672/dev
+set_discovery discovery internal=http://discovery-dev.anthill.internal external=http://discovery-dev.anthill broker=amqp://anthill:anthill@127.0.0.1:5672/dev
+set_discovery login internal=http://login-dev.anthill.internal external=http://login-dev.anthill broker=amqp://anthill:anthill@127.0.0.1:5672/dev
+set_discovery admin internal=http://admin-dev.anthill.internal external=http://admin-dev.anthill broker=amqp://anthill:anthill@127.0.0.1:5672/dev
+set_discovery social internal=http://social-dev.anthill.internal external=http://social-dev.anthill broker=amqp://anthill:anthill@127.0.0.1:5672/dev
+set_discovery profile internal=http://profile-dev.anthill.internal external=http://profile-dev.anthill broker=amqp://anthill:anthill@127.0.0.1:5672/dev
+set_discovery environment internal=http://environment-dev.anthill.internal external=http://environment-dev.anthill broker=amqp://anthill:anthill@127.0.0.1:5672/dev
