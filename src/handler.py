@@ -395,7 +395,7 @@ class ServiceUploadAdminHandler(AdminHandler):
         except common.discover.DiscoveryError as e:
             raise HTTPError(404, "Failed to discover '{0}': ".format(service_id) + e.message)
 
-        IOLoop.current().spawn_callback(self.upload, service_location, action)
+        IOLoop.current().add_callback(self.upload, service_location, action)
 
     @coroutine
     @scoped(scopes=["admin"], method="access_restricted", ask_also=["profile", "profile_write"])
@@ -742,7 +742,7 @@ class ServiceWSHandler(CookieAuthenticatedWSHandler):
         # messages can be received before connection to the child service is
         # established, so buffer them
         if self.conn is not None:
-            tornado.ioloop.IOLoop.current().spawn_callback(self.conn.write_message, message)
+            tornado.ioloop.IOLoop.current().add_callback(self.conn.write_message, message)
         else:
             self.buffer.append(message)
 
