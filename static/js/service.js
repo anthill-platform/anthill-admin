@@ -254,7 +254,7 @@ RENDERERS = {
             {
                 if (typeof d == "object")
                 {
-                    var parent = $('<div></div>');
+                    var parent = $('<div style="float: left;"></div>');
 
                     render(parent, d);
 
@@ -848,7 +848,9 @@ RENDERERS = {
     links: {
         render: function(data)
         {
-            var panel = $('<div class="panel panel-default"><div class="panel-heading">' + data.title + '</div></div>');
+            var panel = $('<div class="panel panel-default"><div class="panel-heading">' +
+                (data.icon != null ? '<i class="fa fa-' + data.icon + '" aria-hidden="true"></i> ' : '') +
+                data.title + '</div></div>');
             var body = $('<div class="panel-body"></div>').appendTo(panel);
             var pills = $('<ul class="nav nav-pills"></ul>').appendTo(body);
             var links = data.links;
@@ -874,6 +876,12 @@ RENDERERS = {
 
 function render_node(node, appendTo)
 {
+    if (typeof node == "string")
+    {
+        appendTo.append(node);
+        return;
+    }
+
     var clazz = node.class;
 
     var renderer = RENDERERS[clazz];
