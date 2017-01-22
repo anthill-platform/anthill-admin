@@ -215,6 +215,9 @@ class ServiceAPIHandler(AuthenticatedHandler):
         except (KeyError, ValueError):
             raise HTTPError(400, "Bad 'context' field.")
 
+        self.set_header("X-Api-Context", ujson.dumps(context_data))
+        self.set_header("X-Api-Action", ujson.dumps(action))
+
         try:
             data = yield self.application.internal.get(
                 service_id,
