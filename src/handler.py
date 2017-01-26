@@ -641,7 +641,7 @@ class ServiceWSHandler(CookieAuthenticatedWSHandler):
     def __init__(self, application, request, **kwargs):
         super(ServiceWSHandler, self).__init__(application, request, **kwargs)
         self.conn = None
-        self.buffer = []
+        self.chunks = Queue(255)
 
     def check_origin(self, origin):
         return True
@@ -655,8 +655,7 @@ class ServiceWSHandler(CookieAuthenticatedWSHandler):
         logging.error(reason)
 
     @coroutine
-    def prepared(self, *args, **kwargs):
-        yield super(ServiceWSHandler, self).prepared()
+    def opened(self, *args, **kwargs):
 
         service_id = self.get_argument("service")
         context = self.get_argument("context")
@@ -693,10 +692,18 @@ class ServiceWSHandler(CookieAuthenticatedWSHandler):
                 "access_token": self.token.key
             })
 
+        def message_from_conn(message):
+            if message is None:
+                self.close(self.conn.close_code, self.conn.close_reason)
+                return
+
+            self.write_message(message)
+
         while True:
             try:
                 self.conn = yield tornado.websocket.websocket_connect(
-                    destination)
+                    url=destination,
+                    on_message_callback=message_from_conn)
             except tornado.httpclient.HTTPError as e:
 
                 if e.code == common.admin.REDIRECT:
@@ -710,48 +717,29 @@ class ServiceWSHandler(CookieAuthenticatedWSHandler):
                     parsed = urlsplit(host)
                     protocol = "wss" if parsed.scheme == "https" else "ws"
 
-                    destination = protocol + "://" + parsed.netloc + parsed.path + "/@stream_admin?" + urllib.urlencode({
-                        "context": context,
-                        "action": action,
-                        "access_token": self.token.key
-                    })
+                    destination = protocol + "://" + parsed.netloc + parsed.path + "/@stream_admin?" + urllib.urlencode(
+                        {
+                            "context": context,
+                            "action": action,
+                            "access_token": self.token.key
+                        })
 
                     logging.info("Redirecting admin stream to " + destination)
 
                 else:
-                    raise HTTPError(e.code, "Failed to connect to service {0} ({1}): {2} {3}.".format(
-                         service_id, destination, e.message, e.response.body if e.response else ""))
+                    reason = e.message, e.response.body if e.response else e.message
+                    self.close(e.code, reason)
+                    return
             else:
                 break
 
-    @coroutine
-    def opened(self, *args, **kwargs):
-        for msg in self.buffer:
-            self.conn.write_message(msg)
-
-        while True:
-            msg = yield self.conn.read_message()
-            if msg is None:
-                break
-            try:
-                yield self.write_message(msg)
-            except tornado.websocket.WebSocketClosedError:
-                break
-
-        self.close(1000, "Service closed connection.")
-
     def on_message(self, message):
-
-        # messages can be received before connection to the child service is
-        # established, so buffer them
         if self.conn is not None:
-            tornado.ioloop.IOLoop.current().add_callback(self.conn.write_message, message)
-        else:
-            self.buffer.append(message)
+            self.conn.write_message(message)
 
     @coroutine
     def closed(self):
         if self.conn is not None:
-            self.conn.close()
+            self.conn.close(self.close_code, self.close_reason)
 
 

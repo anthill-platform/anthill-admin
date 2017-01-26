@@ -1,8 +1,26 @@
 
 
+function notify_progress(message)
+{
+    return $.notify({
+        message: "<i class='fa fa-refresh fa-spin' aria-hidden='true'></i> " + message
+    },{
+        type: "info",
+        placement: {
+            from: "bottom",
+            align: "center"
+        },
+        animate: {
+            enter: 'animated fadeInUp',
+            exit: 'animated fadeOutDown'
+        },
+        allow_dismiss: false
+    });
+}
+
 function notify_success(message)
 {
-    $.notify({
+    return $.notify({
         message: "<i class='fa fa-check' aria-hidden='true'></i> " + message
     },{
         type: "info",
@@ -20,7 +38,7 @@ function notify_success(message)
 
 function notify_error(message)
 {
-    $.notify({
+    return $.notify({
         message: "<i class='fa fa-times' aria-hidden='true'></i> " + message
     },{
         type: "danger",
