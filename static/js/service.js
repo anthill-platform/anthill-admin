@@ -456,7 +456,7 @@ RENDERERS = {
             },
             code: function(name, value, data)
             {
-                var parent = $('<div></div>');
+                var parent = $('<div class="well" style="padding: 0px;"></div>');
 
                 var fullscreen = $('<ul class="nav nav-pills" style="position: absolute; ' +
                     ' margin-left: -72px;"><li role="presentation"><a href="#">' +
@@ -464,14 +464,78 @@ RENDERERS = {
 
                 var height = data.height || 500;
 
-                var e = $('<div class="well full-screen-ready" style="background: none; height: ' + height + 'px;"></div>').appendTo(parent);
+                var e = $('<div class="full-screen-ready" style="background: none; height: ' + height + 'px;"></div>').appendTo(parent);
                 var d = $('<input type="hidden" name="' + name + '" value=""/>').appendTo(parent);
 
                 var buttons = $('<div></div>').appendTo(parent);
 
                 var target = e[0];
-                var flask = new CodeFlask;
-                flask.scaffold(target, false, { language: 'javascript' });
+                var autocomplete = data["autocomplete"];
+
+                CodeMirror.hint.custom = function(cm)
+                {
+                    var list = autocomplete;
+                    var cursor = editor.getCursor();
+                    var currentLine = editor.getLine(cursor.line);
+                    var start = cursor.ch;
+                    var end = start;
+                    while (end < currentLine.length && /[\w$]+/.test(currentLine.charAt(end))) ++end;
+                    while (start && /[\w$]+/.test(currentLine.charAt(start - 1))) --start;
+                    var curWord = start != end && currentLine.slice(start, end);
+                    var regex = new RegExp('^' + curWord, 'i');
+
+                    return {
+                        list: (!curWord ? list : list.filter(function (item) {
+                            return item.match(regex);
+                        })).sort(),
+                        from: CodeMirror.Pos(cursor.line, start),
+                        to: CodeMirror.Pos(cursor.line, end)
+                    };
+                };
+
+                var editor = CodeMirror(target,
+                {
+                    mode:  data["mode"] || "javascript",
+                    theme: "idle",
+                    indentUnit: 4,
+                    lineWrapping: true,
+                    lineNumbers: true,
+                    gutters: ["CodeMirror-linenumbers", "breakpoints"],
+                    extraKeys: {
+                        "Ctrl-Space": "autocomplete"
+                    },
+                    hint: CodeMirror.hint.custom
+                });
+                editor.setSize('100%', '100%');
+
+                CodeMirror.commands.autocomplete = function (cmeditor)
+                {
+                    if (autocomplete)
+                    {
+                        CodeMirror.showHint(cmeditor, CodeMirror.hint.custom,
+                        {
+                        });
+                    }
+                };
+
+                editor.on("gutterClick", function(cm, n)
+                {
+                  var info = cm.lineInfo(n);
+                  cm.setGutterMarker(n, "breakpoints", info.gutterMarkers ? null : makeMarker());
+                });
+
+                editor.on("change", function(cm, n)
+                {
+                    d.val(editor.getValue());
+                });
+
+                function makeMarker()
+                {
+                    var marker = document.createElement("div");
+                    marker.style.color = "red";
+                    marker.innerHTML = "●";
+                    return marker;
+                }
 
                 fullscreen.click(function()
                 {
@@ -490,15 +554,12 @@ RENDERERS = {
                     return false;
                 });
 
-
-                flask.update(value);
-
-                flask.onUpdate(function(code)
-                {
-                   d.val(code);
-                });
-
+                editor.setValue(value);
                 d.val(value);
+
+                setTimeout(function() {
+                   editor.refresh();
+                }, 1);
 
                 return parent;
             },
