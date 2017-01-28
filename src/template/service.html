@@ -49,6 +49,10 @@
 
 {% end %}
 
+{% block title %}
+    {{ metadata.get("title", service_id) }}
+{% end %}
+
 {% block root %}
 
 {% import json %}

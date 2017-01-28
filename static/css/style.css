@@ -89,3 +89,8 @@
     height: 100vh !important;
     background: #ffffff !important;
 }
+
+.fa-spin-hover:hover i {
+    -webkit-animation:fa-spin 2s infinite linear;
+    animation:fa-spin 2s infinite linear;
+}

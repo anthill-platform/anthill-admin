@@ -165,6 +165,12 @@ class IndexHandler(AdminHandler):
             ask_also=["profile", "profile_write"])
     def get(self):
         services = self.application.admin
+
+        if self.get_argument("refresh", "0") == "1":
+            yield services.clear_cache()
+            self.redirect("/")
+            return
+
         services_list = yield services.list_services_with_metadata(self.token.key)
 
         self.render(

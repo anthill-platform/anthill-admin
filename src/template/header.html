@@ -70,6 +70,9 @@
 
             <ul class="nav navbar-nav navbar-right">
 
+                {% block navbar_right %}
+                {% end %}
+
                 {% if auth %}
 
                 <li class="dropdown">

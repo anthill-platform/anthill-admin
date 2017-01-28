@@ -1,5 +1,11 @@
 {% extends "header.html" %}
 
+{% block navbar_right %}
+<li class="fa-spin-hover">
+    <a href="?refresh=1"><i class="fa fa-refresh" aria-hidden="true"></i> Reload</a>
+</li>
+{% end %}
+
 {% block root %}
 
 <div class="container">

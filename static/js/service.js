@@ -860,8 +860,13 @@ RENDERERS = {
 
             var links = data.links;
 
+            var documentTitle = "";
+
             if (links.length > 0)
             {
+                var lastLink = links[links.length - 1];
+                documentTitle = lastLink.title || SERVICE;
+
                 for (var i in links)
                 {
                     var link = links[i];
@@ -898,10 +903,16 @@ RENDERERS = {
                     }
                 }
             }
+            else
+            {
+                documentTitle = document.title;
+            }
 
             TITLE = data.title;
 
             breadcrumbs.append('<li class="active">' + data.title + '</li>');
+
+            document.title = documentTitle + " / " + TITLE;
 
             return null;
         }

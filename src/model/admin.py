@@ -1,7 +1,7 @@
 
 import logging
 
-from tornado.gen import Return, coroutine
+from tornado.gen import Return, coroutine, Task
 
 import common.discover
 
@@ -69,6 +69,20 @@ class AdminModel(Model):
         metadata = yield get_metadata(access_token)
 
         raise Return(metadata)
+
+    @coroutine
+    def clear_cache(self):
+        db = self.cache.acquire()
+
+        services = yield self.list_services()
+
+        keys = ["metadata:" + service_id for service_id in services]
+        keys.extend(["services_metadata", "services"])
+
+        try:
+            yield Task(db.delete, *keys)
+        finally:
+            yield db.release()
 
     @coroutine
     def list_services_with_metadata(self, access_token):
