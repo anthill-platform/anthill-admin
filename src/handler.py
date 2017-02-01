@@ -749,3 +749,39 @@ class ServiceWSHandler(CookieAuthenticatedWSHandler):
             self.conn.close(self.close_code, self.close_reason)
 
 
+class ServiceProxyHandler(AuthenticatedHandler):
+    @coroutine
+    @scoped(scopes=["admin"])
+    def get(self, service_id, path):
+
+        arguments = {
+            k: self.get_argument(k)
+            for k in self.request.arguments
+        }
+
+        arguments["access_token"] = self.token.key
+
+        try:
+            data = yield self.application.internal.get(service_id, path, arguments, network="external")
+        except InternalError as e:
+            raise HTTPError(e.code, e.body)
+
+        self.dumps(data)
+
+    @coroutine
+    @scoped(scopes=["admin"])
+    def post(self, service_id, path):
+
+        arguments = {
+            k: self.get_argument(k)
+            for k in self.request.arguments
+        }
+
+        arguments["access_token"] = self.token.key
+
+        try:
+            data = yield self.application.internal.post(service_id, path, arguments, network="external")
+        except InternalError as e:
+            raise HTTPError(e.code, e.body)
+
+        self.dumps(data)

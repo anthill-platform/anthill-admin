@@ -48,6 +48,7 @@ class AdminServer(common.server.Server):
             (r"/ws/service", handler.ServiceWSHandler),
             (r"/service/upload", handler.ServiceUploadAdminHandler),
             (r"/service/([\w-]+)/([\w-]*)", handler.ServiceAdminHandler),
+            (r"/proxy/([\w-]+)/?(.*)", handler.ServiceProxyHandler),
             (r"/api", handler.ServiceAPIHandler),
 
             (r"/debug", handler.DebugConsoleHandler),

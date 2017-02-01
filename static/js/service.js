@@ -616,7 +616,8 @@ RENDERERS = {
                         no_additional_properties: true,
                         required_by_default: true,
                         theme: 'bootstrap3',
-                        iconlib: 'bootstrap3',
+                        iconlib: 'fontawesome4',
+                        ajax: true,
                         startval: value
                     }
                 );
