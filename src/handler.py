@@ -250,7 +250,7 @@ class ServiceAPIHandler(AuthenticatedHandler):
             if e.code == 599:
                 raise HTTPError(599, "Service is down.")
 
-            raise HTTPError(e.code, e.body)
+            raise HTTPError(e.code, e.body, reason="Action Error")
 
         self.dumps(data)
 
@@ -322,7 +322,7 @@ class ServiceAPIHandler(AuthenticatedHandler):
 
                 raise HTTPError(403, "Forbidden. Such access required: '{0}'.".format(scopes))
 
-            raise HTTPError(e.code, e.body)
+            raise HTTPError(e.code, e.body, reason="Action Error")
 
         self.dumps(data)
 
