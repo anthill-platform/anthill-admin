@@ -2761,8 +2761,13 @@ JSONEditor.defaults.editors.object = JSONEditor.AbstractEditor.extend({
       this.error_holder = document.createElement('div');
       this.container.appendChild(this.error_holder);
 
+      var panel_options = {};
+      if (this.schema.options) {
+          panel_options.borders = this.schema.options.borders;
+      }
+
       // Container for child editor area
-      this.editor_holder = this.theme.getIndentedPanel();
+      this.editor_holder = this.theme.getIndentedPanel(panel_options);
       this.container.appendChild(this.editor_holder);
 
       // Container for rows of child editors
@@ -6361,7 +6366,7 @@ JSONEditor.AbstractTheme = Class.extend({
     if(description) el.appendChild(description);
     return el;
   },
-  getIndentedPanel: function() {
+  getIndentedPanel: function(options) {
     var el = document.createElement('div');
     el.style = el.style || {};
     el.style.paddingLeft = '10px';
@@ -6576,9 +6581,11 @@ JSONEditor.defaults.themes.bootstrap2 = JSONEditor.AbstractTheme.extend({
 
     // TODO: use bootstrap slider
   },
-  getIndentedPanel: function() {
+  getIndentedPanel: function(options) {
     var el = document.createElement('div');
-    el.className = 'well well-small';
+    if (!options || (!options.borders && options.borders !== false)) {
+        el.className = 'well well-small';
+    }
     el.style.paddingBottom = 0;
     return el;
   },
@@ -6771,9 +6778,11 @@ JSONEditor.defaults.themes.bootstrap3 = JSONEditor.AbstractTheme.extend({
 
     return group;
   },
-  getIndentedPanel: function() {
+  getIndentedPanel: function(options) {
     var el = document.createElement('div');
-    el.className = 'well well-sm';
+    if (!options || (!options.borders && options.borders !== false)) {
+      el.className = 'well well-sm';
+    }
     el.style.paddingBottom = 0;
     return el;
   },
@@ -7107,7 +7116,7 @@ JSONEditor.defaults.themes.foundation5 = JSONEditor.defaults.themes.foundation.e
 });
 
 JSONEditor.defaults.themes.foundation6 = JSONEditor.defaults.themes.foundation5.extend({
-  getIndentedPanel: function() {
+  getIndentedPanel: function(options) {
     var el = document.createElement('div');
     el.className = 'callout secondary';
     return el;
@@ -7184,7 +7193,7 @@ JSONEditor.defaults.themes.html = JSONEditor.AbstractTheme.extend({
     el.style.fontStyle = 'italic';
     return el;
   },
-  getIndentedPanel: function() {
+  getIndentedPanel: function(options) {
     var el = this._super();
     el.style.border = '1px solid #ddd';
     el.style.padding = '5px';
@@ -7372,7 +7381,7 @@ JSONEditor.defaults.themes.jqueryui = JSONEditor.AbstractTheme.extend({
 
     button.setAttribute('title',title);
   },
-  getIndentedPanel: function() {
+  getIndentedPanel: function(options) {
     var el = document.createElement('div');
     el.className = 'ui-widget-content ui-corner-all';
     el.style.padding = '1em 1.4em';
@@ -7417,8 +7426,8 @@ JSONEditor.defaults.themes.barebones = JSONEditor.AbstractTheme.extend({
         var el = this._super(text);
         return el;
     },
-    getIndentedPanel: function () {
-        var el = this._super();
+    getIndentedPanel: function (options) {
+        var el = this._super(options);
         return el;
     },
     getChildEditorHolder: function () {
