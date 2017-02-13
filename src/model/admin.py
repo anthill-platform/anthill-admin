@@ -1,6 +1,4 @@
 
-import logging
-
 from tornado.gen import Return, coroutine, Task
 
 import common.discover
@@ -8,6 +6,9 @@ import common.discover
 from common.model import Model
 from common.internal import Internal, InternalError
 from common import cached
+
+import logging
+import collections
 
 
 class AdminModel(Model):
@@ -110,7 +111,7 @@ class AdminModel(Model):
 
         services = yield get_services(access_token)
 
-        raise Return(services)
+        raise Return(collections.OrderedDict(sorted(services.items())))
 
     @coroutine
     def get_gamespace_info(self, gamespace_name):
