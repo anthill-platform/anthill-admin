@@ -3372,7 +3372,7 @@ JSONEditor.defaults.editors.array = JSONEditor.AbstractEditor.extend({
         this.active_tab = null;
       }
       else {
-        this.panel = this.theme.getIndentedPanel();
+        this.panel = this.theme.getIndentedPanel(this.options);
         this.container.appendChild(this.panel);
         this.row_holder = document.createElement('div');
         this.panel.appendChild(this.row_holder);
@@ -3381,7 +3381,7 @@ JSONEditor.defaults.editors.array = JSONEditor.AbstractEditor.extend({
       }
     }
     else {
-        this.panel = this.theme.getIndentedPanel();
+        this.panel = this.theme.getIndentedPanel(this.options);
         this.container.appendChild(this.panel);
         this.controls = this.theme.getButtonHolder();
         this.panel.appendChild(this.controls);
@@ -6586,7 +6586,6 @@ JSONEditor.defaults.themes.bootstrap2 = JSONEditor.AbstractTheme.extend({
     if (!options || (!options.borders && options.borders !== false)) {
         el.className = 'well well-small';
     }
-    el.style.paddingBottom = 0;
     return el;
   },
   getFormInputDescription: function(text) {
@@ -6783,7 +6782,6 @@ JSONEditor.defaults.themes.bootstrap3 = JSONEditor.AbstractTheme.extend({
     if (!options || (!options.borders && options.borders !== false)) {
       el.className = 'well well-sm';
     }
-    el.style.paddingBottom = 0;
     return el;
   },
   getFormInputDescription: function(text) {
@@ -6936,7 +6934,6 @@ JSONEditor.defaults.themes.foundation = JSONEditor.AbstractTheme.extend({
   getIndentedPanel: function() {
     var el = document.createElement('div');
     el.className = 'panel';
-    el.style.paddingBottom = 0;
     return el;
   },
   getHeaderButtonHolder: function() {
