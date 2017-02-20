@@ -734,7 +734,7 @@ class ServiceWSHandler(CookieAuthenticatedWSHandler):
 
                 else:
                     reason = e.message, e.response.body if e.response else e.message
-                    self.close(e.code, reason)
+                    self.close(e.code, str(reason))
                     return
             else:
                 break
