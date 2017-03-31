@@ -37,6 +37,7 @@ RENDERERS = {
 
             var prev_page = Math.max(1, current_page - 1);
             var next_page = Math.min(count, current_page + 1);
+            var page_limit = 12;
 
             function link(page)
             {
@@ -46,13 +47,84 @@ RENDERERS = {
                 return '/service/' + SERVICE + '/' + ACTION + '?context=' + encodeURIComponent(JSON.stringify(ctx));
             }
 
+            var count_from = 1;
+            var count_to = count;
+
+            if (count > page_limit)
+            {
+                var left_side = page_limit / 2;
+                var right_side = page_limit / 2;
+
+                count_from = current_page - left_side;
+                count_to = current_page + right_side;
+
+                if (count_from < 1)
+                {
+                    count_to -= (count_from - 1);
+                    count_from = 1;
+                }
+
+                if (count_to > count)
+                {
+                    var rm = count_to - count;
+                    count_to = count;
+                    count_from -= rm;
+                }
+            }
+
+
             $('<li><a href="' + link(prev_page) + '" aria-label="Previous">' +
                 '<span aria-hidden="true">&laquo;</span></a></li>').appendTo(pag);
 
-            for (var i = 1; i <= count; i++)
+            if (count_from > 1)
+            {
+                $('<li><a href="' + link(1) + '" aria-label="Previous">' +
+                    '<span aria-hidden="true">1</span></a></li>').appendTo(pag);
+
+                $('<li><a href="#">...</a></li>').click(function()
+                {
+                    var page = prompt("Enter the page number", current_page);
+
+                    if (page == null)
+                        return;
+
+                    page = parseInt(page);
+
+                    if (page < 1) page = 1;
+                    if (page > count) page = count;
+
+                    document.location.href = link(page);
+
+                }).appendTo(pag);
+            }
+
+            for (var i = count_from; i <= count_to; i++)
             {
                 $('<li' + (current_page == i ? ' class="active"' : '') +
                     '><a href="' + link(i) + '">' + i + '</a></li>').appendTo(pag);
+            }
+
+
+            if (count_to < count)
+            {
+                $('<li><a href="#">...</a></li>').click(function()
+                {
+                    var page = prompt("Enter the page number", current_page);
+
+                    if (page == null)
+                        return;
+
+                    page = parseInt(page);
+
+                    if (page < 1) page = 1;
+                    if (page > count) page = count;
+
+                    document.location.href = link(page);
+
+                }).appendTo(pag);
+
+                $('<li><a href="' + link(count) + '" aria-label="Previous">' +
+                    '<span aria-hidden="true">' + count + '</span></a></li>').appendTo(pag);
             }
 
             $('<li><a href="' + link(next_page) + '" aria-label="Next">' +
