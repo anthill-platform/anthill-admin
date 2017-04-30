@@ -30,6 +30,8 @@ from common.internal import InternalError
 from common.discover import DiscoveryError
 from common.options import options
 
+from model.setup import NoSuchPhaseError
+
 
 class AdminAuthCallbackHandler(AuthCallbackHandler):
 
@@ -402,7 +404,7 @@ class ServiceUploadAdminHandler(AdminHandler):
         try:
             service_location = yield common.discover.cache.get_service(service_id)
         except common.discover.DiscoveryError as e:
-            raise HTTPError(404, "Failed to discover '{0}': ".format(service_id) + e.message)
+            raise HTTPError(e.code, "Failed to discover '{0}': ".format(service_id) + e.message)
 
         IOLoop.current().add_callback(self.upload, service_location, action)
 
@@ -538,6 +540,26 @@ class ServiceAdminHandler(AdminHandler):
             metadata=metadata,
             notice=notice)
 
+    def access_restricted(self, scopes=None, ask_also=None):
+        ajax = self.get_argument("ajax", "false") == "true"
+
+        if ajax:
+            self.set_status(401)
+            self.write("Authorization required")
+            return
+
+        super(ServiceAdminHandler, self).access_restricted(scopes, ask_also)
+
+    def write_error(self, status_code, **kwargs):
+        ajax = self.get_argument("ajax", "false") == "true"
+
+        if ajax:
+            self.set_status(status_code)
+            self.write(traceback.format_exc() if options.debug else traceback.format_exc(0))
+            return
+
+        super(ServiceAdminHandler, self).write_error(status_code, **kwargs)
+
     @coroutine
     @scoped(scopes=["admin"], method="access_restricted", ask_also=["profile", "profile_write"])
     def post(self, service_id, action):
@@ -550,6 +572,7 @@ class ServiceAdminHandler(AdminHandler):
         try:
             context = arguments.pop("context")
             method = arguments.pop("method")
+            ajax = arguments.pop("ajax", "false") == "true"
         except KeyError:
             raise HTTPError(400, "Missing fields")
 
@@ -571,64 +594,74 @@ class ServiceAdminHandler(AdminHandler):
                     "access_token": self.current_user.token.key
                 })
         except InternalError as e:
-            do_raise = True
             data = {}
 
-            if e.code == common.admin.REDIRECT:
+            if ajax:
+                self.set_status(e.code, "Error")
                 response = e.response
-                data = ujson.loads(response.body)
-
-                redirect_to = data["redirect-to"]
-                context_data = data["context"]
-
-                redirect_data = {
-                    "context": ujson.dumps(context_data)
-                }
-
-                if "notice" in data:
-                    self.__store_notice__(data["notice"], "info")
-
-                url = "/service/" + service_id + "/" + redirect_to
-                self.redirect(url + "?" + urllib.urlencode(redirect_data))
+                self.write(response.body)
                 return
+            else:
+                do_raise = True
 
-            if e.code == common.admin.ACTION_ERROR:
-                do_raise = False
+                if e.code == common.admin.REDIRECT:
+                    response = e.response
+                    data = ujson.loads(response.body)
 
-                response = e.response
-                data = ujson.loads(response.body)
+                    redirect_to = data["redirect-to"]
+                    context_data = data["context"]
 
-                if not isinstance(data, list):
-                    raise HTTPError(500, "Failed to render error")
+                    redirect_data = {
+                        "context": ujson.dumps(context_data)
+                    }
 
-                try:
-                    error = data[0]["title"]
-                except IndexError:
-                    raise HTTPError(500, "Failed to render error")
+                    if "notice" in data:
+                        self.__store_notice__(data["notice"], "info")
 
-                links = data[1] if len(data) > 1 else None
+                    url = "/service/" + service_id + "/" + redirect_to
+                    self.redirect(url + "?" + urllib.urlencode(redirect_data))
+                    return
+                if e.code == common.admin.ACTION_ERROR:
+                    do_raise = False
 
-                if not links:
-                    referrer = self.request.headers.get("Referer")
+                    response = e.response
+                    data = ujson.loads(response.body)
 
-                    if referrer:
-                        self.__store_notice__(error, "error")
-                        self.redirect(referrer)
-                        return
+                    if not isinstance(data, list):
+                        raise HTTPError(500, "Failed to render error")
 
-            if e.code == 401:
-                response = e.response
-                scopes = response.headers.get("Need-Scopes", None)
+                    try:
+                        error = data[0]["title"]
+                    except IndexError:
+                        raise HTTPError(500, "Failed to render error")
 
-                if scopes is None:
-                    raise HTTPError(403, "Forbidden")
+                    links = data[1] if len(data) > 1 else None
 
-                parsed = parse_scopes(scopes)
-                self.access_restricted(scopes=parsed)
-                return
+                    if not links:
+                        referrer = self.request.headers.get("Referer")
 
-            if do_raise:
-                raise HTTPError(e.code, e.body)
+                        if referrer:
+                            self.__store_notice__(error, "error")
+                            self.redirect(referrer)
+                            return
+
+                if e.code == 401:
+                    response = e.response
+                    scopes = response.headers.get("Need-Scopes", None)
+
+                    if scopes is None:
+                        raise HTTPError(403, "Forbidden")
+
+                    parsed = parse_scopes(scopes)
+                    self.access_restricted(scopes=parsed)
+                    return
+
+                if do_raise:
+                    raise HTTPError(e.code, e.body)
+
+        if ajax:
+            self.dumps(data)
+            return
 
         services = self.application.admin
         metadata = yield services.get_metadata(service_id, self.token.key) or {}
@@ -676,8 +709,8 @@ class ServiceWSHandler(CookieAuthenticatedWSHandler):
 
         try:
             service_location = yield common.discover.cache.get_service(service_id)
-        except DiscoveryError:
-            raise HTTPError(500, "Failed to discover service: " + service_id)
+        except DiscoveryError as e:
+            raise HTTPError(e.code, "Failed to discover service: " + service_id)
 
         scheme, sep, rest = service_location.partition(':')
 

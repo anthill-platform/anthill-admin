@@ -754,10 +754,12 @@ RENDERERS = {
                 form_class += "form-inline"
             }
 
+            var form_url = "?context=" + encodeURIComponent(JSON.stringify(context));
+
             var panel = $('<div class="panel panel-default"><div class="panel-heading">' +
                 (icon != null ? ('<i class="fa fa-' + icon + '" aria-hidden="true"></i> ') : '') + data.title + '</div></div>');
-            var form = $('<form enctype="multipart/form-data" role="form" method="POST" data-toggle="validator" action="?context=' +
-                encodeURIComponent(JSON.stringify(context)) + '" class="' + form_class + '"></form>').appendTo(panel);
+            var form = $('<form enctype="application/x-www-form-urlencoded" role="form" method="POST" data-toggle="validator" action="' +
+                form_url + '" class="' + form_class + '"></form>').appendTo(panel);
 
             if (data["callback"])
             {
@@ -772,6 +774,84 @@ RENDERERS = {
                     return callback(values);
                 });
             }
+
+            if (data["callback"])
+            {
+                var callback = data["callback"];
+                form.submit(function(e)
+                {
+                    var values = {};
+                    $.each($(form).serializeArray(), function(i, field) {
+                        values[field.name] = field.value;
+                    });
+
+                    return callback(values);
+                });
+            }
+
+
+            form.submit(function(e)
+            {
+                e.preventDefault();
+
+                var obj = {};
+                $.each($(this).serializeArray(), function(_, kv)
+                {
+                    obj[kv.name] = kv.value;
+
+                });
+
+                $.extend(obj, {
+                    "method": $(document.activeElement).val(),
+                    "ajax": "true"
+                });
+
+                $.post(form_url, obj).done(function(data)
+                {
+                    init_service(SERVICE, ACTION, data, CONTEXT);
+                }).fail(function(data)
+                {
+                    switch (data.status)
+                    {
+                        case 444:
+                        {
+                            var body = JSON.parse(data.responseText);
+
+                            if (body.notice != null)
+                            {
+                                Cookies.set("notice", btoa(JSON.stringify({
+                                    "kind": "info",
+                                    "message": body.notice
+                                })));
+                            }
+
+                            var to = body["redirect-to"];
+                            var ctx = body["context"];
+
+                            document.location.href = '/service/' + SERVICE + '/' + to +
+                                '?context=' + encodeURIComponent(JSON.stringify(ctx));
+
+                            break;
+                        }
+                        case 445:
+                        {
+                            var body = JSON.parse(data.responseText);
+
+                            if (body[0] != null)
+                            {
+                                var errorTitle = body[0]["title"]
+                                notify_error(errorTitle, true);
+                            }
+                            break
+                        }
+                        default:
+                        {
+                            notify_error(data.responseText, true);
+                        }
+                    }
+                });
+
+            });
 
             var fields = data["fields"];
             var methods = data["methods"];
@@ -1106,6 +1186,10 @@ function init_service(service_id, action, data, context)
     ACTION = action;
     CONTEXT = context;
 
+    var breadcrumbs = $('#service-breadcrumbs');
+
+    breadcrumbs.find('li:nth-child(n+3)').remove();
+
     render($('#root'), data);
 
     $(".switch").bootstrapSwitch();
@@ -1122,7 +1206,7 @@ function init_service(service_id, action, data, context)
         }
     });
 
-    $('#service-breadcrumbs').popover({
+    breadcrumbs.popover({
         trigger: "manual",
         placement: "right",
         content: function()

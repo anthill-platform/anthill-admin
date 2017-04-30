@@ -36,10 +36,10 @@ function notify_success(message)
     });
 }
 
-function notify_error(message)
+function notify_error(message, dismiss)
 {
     return $.notify({
-        message: "<i class='fa fa-times' aria-hidden='true'></i> " + message
+        message: message
     },{
         type: "danger",
         placement: {
@@ -50,6 +50,6 @@ function notify_error(message)
             enter: 'animated fadeInDown',
             exit: 'animated fadeOutUp'
         },
-        delay: 2500
+        delay: dismiss ? 0 : 2500
     });
 }
