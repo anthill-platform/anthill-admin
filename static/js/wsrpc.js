@@ -200,11 +200,12 @@ function WebSocketJsonRPC(url)
                 // call a request
                 try
                 {
-                    var response = zis.requestHandlers[method](params);
+                    var response = zis.requestHandlers[method].apply(zis, params);
                 }
                 catch (e)
                 {
                     zis.write_error(e.code, e.message, e.data, id);
+                    return;
                 }
 
                 if (response != null)

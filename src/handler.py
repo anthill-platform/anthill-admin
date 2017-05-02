@@ -30,8 +30,6 @@ from common.internal import InternalError
 from common.discover import DiscoveryError
 from common.options import options
 
-from model.setup import NoSuchPhaseError
-
 
 class AdminAuthCallbackHandler(AuthCallbackHandler):
 

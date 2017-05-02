@@ -774,84 +774,72 @@ RENDERERS = {
                     return callback(values);
                 });
             }
-
-            if (data["callback"])
+            else
             {
-                var callback = data["callback"];
+
                 form.submit(function(e)
                 {
-                    var values = {};
-                    $.each($(form).serializeArray(), function(i, field) {
-                        values[field.name] = field.value;
+                    e.preventDefault();
+
+                    var obj = {};
+                    $.each($(this).serializeArray(), function(_, kv)
+                    {
+                        obj[kv.name] = kv.value;
+
                     });
 
-                    return callback(values);
+                    $.extend(obj, {
+                        "method": $(document.activeElement).val(),
+                        "ajax": "true"
+                    });
+
+                    $.post(form_url, obj).done(function(data)
+                    {
+                        init_service(SERVICE, ACTION, data, CONTEXT);
+                    }).fail(function(data)
+                    {
+                        switch (data.status)
+                        {
+                            case 444:
+                            {
+                                var body = JSON.parse(data.responseText);
+
+                                if (body.notice != null)
+                                {
+                                    Cookies.set("notice", btoa(JSON.stringify({
+                                        "kind": "info",
+                                        "message": body.notice
+                                    })));
+                                }
+
+                                var to = body["redirect-to"];
+                                var ctx = body["context"];
+
+                                document.location.href = '/service/' + SERVICE + '/' + to +
+                                    '?context=' + encodeURIComponent(JSON.stringify(ctx));
+
+                                break;
+                            }
+                            case 445:
+                            {
+                                var body = JSON.parse(data.responseText);
+
+                                if (body[0] != null)
+                                {
+                                    var errorTitle = body[0]["title"]
+                                    notify_error(errorTitle, true);
+                                }
+                                break
+                            }
+                            default:
+                            {
+                                notify_error(data.responseText, true);
+                            }
+                        }
+                    });
+
                 });
             }
-
-
-            form.submit(function(e)
-            {
-                e.preventDefault();
-
-                var obj = {};
-                $.each($(this).serializeArray(), function(_, kv)
-                {
-                    obj[kv.name] = kv.value;
-
-                });
-
-                $.extend(obj, {
-                    "method": $(document.activeElement).val(),
-                    "ajax": "true"
-                });
-
-                $.post(form_url, obj).done(function(data)
-                {
-                    init_service(SERVICE, ACTION, data, CONTEXT);
-                }).fail(function(data)
-                {
-                    switch (data.status)
-                    {
-                        case 444:
-                        {
-                            var body = JSON.parse(data.responseText);
-
-                            if (body.notice != null)
-                            {
-                                Cookies.set("notice", btoa(JSON.stringify({
-                                    "kind": "info",
-                                    "message": body.notice
-                                })));
-                            }
-
-                            var to = body["redirect-to"];
-                            var ctx = body["context"];
-
-                            document.location.href = '/service/' + SERVICE + '/' + to +
-                                '?context=' + encodeURIComponent(JSON.stringify(ctx));
-
-                            break;
-                        }
-                        case 445:
-                        {
-                            var body = JSON.parse(data.responseText);
-
-                            if (body[0] != null)
-                            {
-                                var errorTitle = body[0]["title"]
-                                notify_error(errorTitle, true);
-                            }
-                            break
-                        }
-                        default:
-                        {
-                            notify_error(data.responseText, true);
-                        }
-                    }
-                });
-
-            });
 
             var fields = data["fields"];
             var methods = data["methods"];
