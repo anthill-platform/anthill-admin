@@ -766,6 +766,8 @@ RENDERERS = {
                 var callback = data["callback"];
                 form.submit(function(e)
                 {
+                    e.preventDefault();
+
                     var values = {};
                     $.each($(form).serializeArray(), function(i, field) {
                         values[field.name] = field.value;
@@ -781,15 +783,33 @@ RENDERERS = {
                 {
                     e.preventDefault();
 
+                    var btn = $(document.activeElement);
+
+                    if (! btn.length ||
+                        ! form.has(btn) ||
+                        ! btn.is('button[type="submit"], input[type="submit"], input[type="image"]') ||
+                        ! btn.is('[name]') )
+                    {
+                        var buttons = form.find('button[type="submit"]');
+
+                        if (buttons.length == 1)
+                        {
+                            btn = buttons[0];
+                        }
+                        else
+                        {
+                            return;
+                        }
+                    }
+
                     var obj = {};
                     $.each($(this).serializeArray(), function(_, kv)
                     {
                         obj[kv.name] = kv.value;
-
                     });
 
                     $.extend(obj, {
-                        "method": $(document.activeElement).val(),
+                        "method": $(btn).val(),
                         "ajax": "true"
                     });
 
