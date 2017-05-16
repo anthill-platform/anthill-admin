@@ -115,7 +115,6 @@ class AdminHandler(CookieAuthenticatedHandler):
             self.gamespace_info = yield self.application.admin.get_gamespace_info(self.gamespace)
 
         if self.token is not None:
-
             try:
                 # noinspection PyUnusedLocal
                 @cached(kv=self.application.cache,
@@ -159,23 +158,8 @@ class DebugConsoleHandler(AdminHandler):
 
 
 class IndexHandler(AdminHandler):
-    @coroutine
-    @scoped(scopes=["admin"],
-            method="access_restricted",
-            ask_also=["profile", "profile_write"])
     def get(self):
-        services = self.application.admin
-
-        if self.get_argument("refresh", "0") == "1":
-            yield services.clear_cache()
-            self.redirect("/")
-            return
-
-        services_list = yield services.list_services_with_metadata(self.token.key)
-
-        self.render(
-            "template/index.html",
-            services=services_list)
+        self.redirect("/service/environment/index")
 
 
 class SelectGamespaceHandler(AdminHandler):
@@ -339,6 +323,7 @@ class ServiceUploadAdminHandler(AdminHandler):
         self.filename = ""
         self.bytes_received = 0
         self.context = {}
+        self.args = {}
 
     @coroutine
     def __producer__(self, write):
@@ -364,7 +349,8 @@ class ServiceUploadAdminHandler(AdminHandler):
             url=service_location + "/@admin_upload?" + urllib.urlencode({
                 "action": action,
                 "access_token": self.token.key,
-                "context": ujson.dumps(self.context)
+                "context": ujson.dumps(self.context),
+                "args": ujson.dumps(self.args),
             }),
             method="PUT",
             body_producer=self.__producer__,
@@ -387,6 +373,12 @@ class ServiceUploadAdminHandler(AdminHandler):
         service_id = self.get_argument("service")
         action = self.get_argument("action")
         context = self.get_argument("context", "{}")
+        args = self.get_argument("args", "{}")
+
+        try:
+            self.args = ujson.loads(args)
+        except (KeyError, ValueError):
+            raise HTTPError(400, "Bad args field.")
 
         try:
             self.context = ujson.loads(context)
@@ -518,7 +510,11 @@ class ServiceAdminHandler(AdminHandler):
                 raise HTTPError(e.code, e.body)
 
         services = self.application.admin
-        metadata = yield services.get_metadata(service_id, self.token.key) or {}
+
+        if self.get_argument("refresh", "0") == "1":
+            yield services.clear_cache()
+            self.redirect("/")
+            return
 
         notice = self.get_cookie("notice")
         if notice:
@@ -529,14 +525,16 @@ class ServiceAdminHandler(AdminHandler):
 
             self.clear_cookie("notice")
 
+        services_list = yield self.application.admin.list_services_with_metadata(self.token.key)
+
         self.render(
             "template/service.html",
             data=data,
             service_id=service_id,
             action=action,
             context=context_data,
-            metadata=metadata,
-            notice=notice)
+            notice=notice,
+            services_list=services_list)
 
     def access_restricted(self, scopes=None, ask_also=None):
         ajax = self.get_argument("ajax", "false") == "true"
@@ -661,8 +659,7 @@ class ServiceAdminHandler(AdminHandler):
             self.dumps(data)
             return
 
-        services = self.application.admin
-        metadata = yield services.get_metadata(service_id, self.token.key) or {}
+        services_list = yield self.application.admin.list_services_with_metadata(self.token.key)
 
         self.render(
             "template/service.html",
@@ -670,8 +667,8 @@ class ServiceAdminHandler(AdminHandler):
             service_id=service_id,
             action=action,
             context=context_data,
-            metadata=metadata,
-            notice=None)
+            notice=None,
+            services_list=services_list)
 
 
 class ServiceWSHandler(CookieAuthenticatedWSHandler):

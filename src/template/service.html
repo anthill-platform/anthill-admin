@@ -34,6 +34,34 @@
 <script type="text/javascript">var DornEditor = JSONEditor</script>
 {% end %}
 
+{% block navbar_left %}
+    {% for i, (_service_id, service) in enumerate(services_list.iteritems()) %}
+        {% set location = service["location"] %}
+        {% set service_metadata = service["metadata"] or {} %}
+
+        {% set title = service_metadata.get("title", _service_id) %}
+        {% set description = service_metadata.get("description", "") %}
+        {% set icon = service_metadata.get("icon") %}
+
+        <li
+        {% if _service_id == service_id %}
+        class="active"
+        {% end %} title="{{ description }}">
+            <a href="/service/{{ _service_id }}/index">{{ title }}
+                <span style="font-size:16px;" class="pull-right hidden-xs showopacity">
+                    {% if icon %}
+                        <i class="fa fa-{{ icon }}" aria-hidden="true"></i>
+                    {% end %}
+                </span>
+            </a>
+        </li>
+    {% end %}
+    <li>
+        <a href="/debug" target="_blank"> Developer Console
+            <span style="font-size:16px;" class="pull-right hidden-xs showopacity">
+                <i class="fa fa-terminal" aria-hidden="true"></i></span></a>
+    </li>
+{% end %}
 
 {% block navbar %}
 
@@ -41,16 +69,18 @@
 {% import urllib %}
 
 <ul id="service-breadcrumbs" class="breadcrumb list-inline">
+    {% set metadata_ = services_list.get(service_id, {}).get("metadata", {}) %}
     <li><a href="/service/{{ service_id }}/index">
-        <i class="fa fa-{{ metadata.get('icon', 'wrench') }}" aria-hidden="true"></i>
-        {{ metadata.get("title", service_id) }}</a>
+        <i class="fa fa-{{ metadata_.get('icon', 'wrench') }}" aria-hidden="true"></i>
+        {{ metadata_.get("title", service_id) }}</a>
     </li>
 </ul>
 
 {% end %}
 
 {% block title %}
-    {{ metadata.get("title", service_id) }}
+    {% set metadata_ = services_list.get(service_id, {}).get("metadata", {}) %}
+    {{ metadata_.get("title", service_id) }}
 {% end %}
 
 {% block root %}

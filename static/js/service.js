@@ -164,6 +164,70 @@ RENDERERS = {
             var panel = $('<div class="panel panel-default"><div class="panel-heading">' + data.title + '</div></div>');
             var body = $('<div class="panel-body"></div>').appendTo(panel);
 
+            var has_body = false;
+            var form = null;
+
+            if (data["fields"])
+            {
+                form = $('<form></form>').appendTo(body);
+
+                var fields = data["fields"];
+                has_body = Object.getOwnPropertyNames(fields).length > 0;
+
+                if (has_body)
+                {
+                    var fields_array = [];
+
+                    for (var name in fields)
+                    {
+                        var field = fields[name];
+
+                        fields_array.push({
+                            "name": name,
+                            "field": field
+                        })
+                    }
+
+                    fields_array.sort(function(ao, bo)
+                    {
+                        var a = ao["field"];
+                        var b = bo["field"];
+
+                        var orderA = a.hasOwnProperty("order") ? a.order : ao["name"];
+                        var orderB = b.hasOwnProperty("order") ? b.order : bo["name"];
+
+                        return orderA > orderB ? 1 : -1;
+                    });
+
+                    for (var i in fields_array)
+                    {
+                        var fo = fields_array[i];
+                        var name = fo["name"];
+                        var field = fo["field"];
+                        var title = field.title;
+                        var value = field.value != undefined ? field.value : "";
+                        var validation = field["validation"];
+                        var type = field["type"];
+
+                        var f = RENDERERS.form.types[type](name, value, field);
+
+                        if (validation != null) {
+                            RENDERERS.form.validators[validation](f);
+                        }
+
+                        var node = $('<div class="form-group"></div>');
+
+                        if (title.length > 0)
+                        {
+                            $('<label for="' + name + '">' + title + '</label>').appendTo(node);
+                        }
+
+                        node.append(f);
+                        form.append(node).append(" ");
+                    }
+                }
+            }
+
             var div = $('<div><a class="btn btn-default btn-double-space">' +
                 '<i class="fa fa-upload" aria-hidden="true"></i> Upload file</a></div>').appendTo(body);
 
@@ -184,6 +248,18 @@ RENDERERS = {
 
                     onSubmit: function()
                     {
+                        var args = {};
+                        $.each(form.serializeArray(), function(_, kv)
+                        {
+                            args[kv.name] = kv.value;
+                        });
+
+                        this.setOptions({
+                            url: '/service/upload?context=' +
+                                encodeURIComponent(JSON.stringify(CONTEXT)) + '&service=' + SERVICE +
+                                '&action=' + action + "&args=" + encodeURIComponent(JSON.stringify(args))
+                        });
+
                         status.html('<i class="fa fa-refresh fa-spin" aria-hidden="true"></i> Uploading <span></span>...');
                     },
                     onProgress: function(pct)
@@ -1212,41 +1288,5 @@ function init_service(service_id, action, data, context)
 
             return 'label label-default';
         }
-    });
-
-    breadcrumbs.popover({
-        trigger: "manual",
-        placement: "right",
-        content: function()
-        {
-            var url = "/service/" + SERVICE + "/" + ACTION;
-
-            if (context != {})
-            {
-                url = url + "?context=" + encodeURIComponent(JSON.stringify(context, null, ""))
-            }
-
-            var node = $('<a href="#" class="like" data-fade="false" data-like="' + url +
-                '" data-title="' + TITLE +
-                '"><span></span></a>');
-
-            processLike(node);
-
-            return node;
-        },
-        html: true, animation:false
-    }).on("mouseenter", function () {
-        var _this = this;
-        $(this).popover("show");
-        $(".popover").on("mouseleave", function () {
-            $(_this).popover('hide');
-        });
-    }).on("mouseleave", function () {
-        var _this = this;
-        setTimeout(function () {
-            if (!$(".popover:hover").length) {
-                $(_this).popover("hide");
-            }
-        }, 300);
     });
 }
