@@ -1008,7 +1008,26 @@ RENDERERS = {
 
                     if (title.length > 0)
                     {
-                        $('<label for="' + name + '">' + title + '</label>').appendTo(node);
+                        var label = $('<label for="' + name + '" class="form-field-title">' +
+                            title + ' </label>').appendTo(node);
+
+                        if (field.description)
+                        {
+                            $('<a href="#" class="text-info">' +
+                                '<i class="fa fa-info-circle" aria-hidden="true"></i></a>').
+                                appendTo(label).click(function()
+                            {
+                                $(this).parent().parent().find(".well").toggle();
+                                $(this).toggleClass("text-info");
+                                return false;
+                            });
+                        }
+                    }
+
+                    if (field.description)
+                    {
+                        $('<div class="well well-sm" style="display: none;">' +
+                            field.description + '</div>').appendTo(node);
                     }
 
                     node.append(f);

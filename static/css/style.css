@@ -235,3 +235,7 @@ section{
 #service-breadcrumbs {
     margin-bottom: 5px !important;
 }
+
+.form-field-description {
+    font-size: 22px;
+}
