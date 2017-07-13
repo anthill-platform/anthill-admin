@@ -194,24 +194,34 @@ commands = {
                     {
                         ask("Scopes of access (comma-separated):", scopes).done(function(scopes)
                         {
-                            ask("Gamespace (leave empty for current)", gamespace, CURRENT_GAMESPACE).done(function (gamespace)
+                            ask("Gamespace (leave empty for current)", gamespace,
+                                CURRENT_GAMESPACE).done(function (gamespace)
                             {
-                                discover("login").done(function (auth_location)
+                                ask("Other arguments (may be empty)").done(function (other_args)
                                 {
-                                    http_post(auth_location + '/auth',
-                                    {
+                                    var args = {
                                         "credential": credential,
                                         "username": username,
                                         "key": key,
                                         "scopes": scopes,
                                         "gamespace": gamespace
-                                    }).done(function (access_token)
+                                    };
+
+                                    if (other_args)
                                     {
-                                        Cookies.set("console_access_token", access_token);
-                                        d.resolve("Authorized! Access token: " + access_token)
-                                    }).fail(function (e)
+                                        $.extend(args, parse_fields(other_args));
+                                    }
+
+                                    discover("login").done(function (auth_location)
                                     {
-                                        d.reject("Failed: " + e);
+                                        http_post(auth_location + '/auth', args).done(function (access_token)
+                                        {
+                                            Cookies.set("console_access_token", access_token);
+                                            d.resolve("Authorized! Access token: " + access_token)
+                                        }).fail(function (e)
+                                        {
+                                            d.reject("Failed: " + e);
+                                        });
                                     });
                                 });
                             });
