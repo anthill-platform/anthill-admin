@@ -239,3 +239,17 @@ section{
 .form-field-description {
     font-size: 22px;
 }
+
+.navbar-header-fixed {
+    margin-left: 16px !important;
+}
+
+.navbar-button-fixed {
+    border: 0px !important;
+}
+
+.right-menu-fx {
+    top: 2px;
+    position: absolute;
+    right: 20px;
+}

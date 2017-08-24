@@ -68,6 +68,8 @@ class AdminHandler(CookieAuthenticatedHandler):
         self.profile = None
         self.gamespace = None
         self.gamespace_info = {}
+        self.services_list = None
+        self.current_service = None
 
     def authorize_as(self):
         return "admin"
@@ -109,12 +111,21 @@ class AdminHandler(CookieAuthenticatedHandler):
         yield super(AdminHandler, self).prepare()
 
         self.gamespace = self.get_cookie("gamespace", None)
+        admin = self.application.admin
 
         if self.gamespace:
             # look up some info
-            self.gamespace_info = yield self.application.admin.get_gamespace_info(self.gamespace)
+            self.gamespace_info = yield admin.get_gamespace_info(self.gamespace)
 
-        if self.token is not None:
+        if self.token:
+
+            services = self.application.admin
+
+            if self.get_argument("refresh", "0") == "1":
+                yield services.clear_cache()
+                self.redirect("/")
+                return
+
             try:
                 # noinspection PyUnusedLocal
                 @cached(kv=self.application.cache,
@@ -139,6 +150,8 @@ class AdminHandler(CookieAuthenticatedHandler):
             else:
                 self.profile = profile
 
+            self.services_list = yield admin.list_services_with_metadata(self.token.key)
+
 
 class DebugConsoleHandler(AdminHandler):
     @coroutine
@@ -155,11 +168,6 @@ class DebugConsoleHandler(AdminHandler):
             "template/console.html",
             discovery_service=discovery,
             gamespace=self.gamespace)
-
-
-class IndexHandler(AdminHandler):
-    def get(self):
-        self.redirect("/service/environment/index")
 
 
 class SelectGamespaceHandler(AdminHandler):
@@ -433,7 +441,7 @@ class ServiceAdminHandler(AdminHandler):
 
     @coroutine
     @scoped(scopes=["admin"], method="access_restricted", ask_also=["profile", "profile_write"])
-    def get(self, service_id, action):
+    def get(self, current_service, action):
 
         context = self.get_argument("context", "{}")
 
@@ -442,9 +450,11 @@ class ServiceAdminHandler(AdminHandler):
         except (KeyError, ValueError):
             raise HTTPError(400, "Bad context field.")
 
+        self.current_service = current_service
+
         try:
             data = yield self.application.internal.get(
-                service_id,
+                current_service,
                 "@admin",
                 {
                     "context": ujson.dumps(context_data),
@@ -471,7 +481,7 @@ class ServiceAdminHandler(AdminHandler):
                     "template/error.html",
                     title="Cannot administrate this page.",
                     description="Service <span class=\"badge\">{0}</span> has no api "
-                                "<span class=\"badge\">{1}</span> to administrate.".format(service_id, action))
+                                "<span class=\"badge\">{1}</span> to administrate.".format(current_service, action))
 
                 return
 
@@ -489,7 +499,7 @@ class ServiceAdminHandler(AdminHandler):
                 if "notice" in data:
                     self.__store_notice__(data["notice"], "info")
 
-                url = "/service/" + service_id + "/" + redirect_to
+                url = "/service/" + current_service + "/" + redirect_to
                 self.redirect(url + "?" + urllib.urlencode(redirect_data))
                 return
 
@@ -500,7 +510,7 @@ class ServiceAdminHandler(AdminHandler):
                     description="""
                         Service <span class=\"badge\">{0}</span> appears to be down.<br>
                         Please try again later.
-                    """.format(service_id))
+                    """.format(current_service))
                 return
 
             if e.code == common.admin.ACTION_ERROR:
@@ -511,11 +521,6 @@ class ServiceAdminHandler(AdminHandler):
 
         services = self.application.admin
 
-        if self.get_argument("refresh", "0") == "1":
-            yield services.clear_cache()
-            self.redirect("/")
-            return
-
         notice = self.get_cookie("notice")
         if notice:
             try:
@@ -525,16 +530,12 @@ class ServiceAdminHandler(AdminHandler):
 
             self.clear_cookie("notice")
 
-        services_list = yield self.application.admin.list_services_with_metadata(self.token.key)
-
         self.render(
             "template/service.html",
             data=data,
-            service_id=service_id,
             action=action,
             context=context_data,
-            notice=notice,
-            services_list=services_list)
+            notice=notice)
 
     def access_restricted(self, scopes=None, ask_also=None):
         ajax = self.get_argument("ajax", "false") == "true"
@@ -659,16 +660,13 @@ class ServiceAdminHandler(AdminHandler):
             self.dumps(data)
             return
 
-        services_list = yield self.application.admin.list_services_with_metadata(self.token.key)
-
         self.render(
             "template/service.html",
             data=data,
-            service_id=service_id,
+            current_service=service_id,
             action=action,
             context=context_data,
-            notice=None,
-            services_list=services_list)
+            notice=None)
 
 
 class ServiceWSHandler(CookieAuthenticatedWSHandler):
@@ -813,3 +811,12 @@ class ServiceProxyHandler(AuthenticatedHandler):
             raise HTTPError(e.code, e.body)
 
         self.dumps(data)
+
+
+class IndexHandler(AdminHandler):
+    @coroutine
+    @scoped(scopes=["admin"],
+            method="access_restricted",
+            ask_also=["profile", "profile_write"])
+    def get(self):
+        self.render("template/index.html")

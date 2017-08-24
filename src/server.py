@@ -23,12 +23,6 @@ class AdminServer(common.server.Server):
     def __init__(self):
         super(AdminServer, self).__init__()
 
-        self.db = common.database.Database(
-            host=options.db_host,
-            database=options.db_name,
-            user=options.db_username,
-            password=options.db_password)
-
         self.cache = common.keyvalue.KeyValueStorage(
             host=options.cache_host,
             port=options.cache_port,
@@ -52,9 +46,11 @@ class AdminServer(common.server.Server):
             (r"/api", handler.ServiceAPIHandler),
 
             (r"/debug", handler.DebugConsoleHandler),
-            (r"/logout", common.handler.LogoutHandler),
-            (r"/", handler.IndexHandler),
+            (r"/logout", common.handler.LogoutHandler)
         ]
+
+    def get_root_handler(self):
+        return handler.IndexHandler
 
     @coroutine
     def started(self):

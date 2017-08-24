@@ -34,8 +34,9 @@
 
 <nav class="navbar navbar-inverse sidebar" role="navigation">
     <div class="container-fluid">
-        <div class="navbar-header">
-            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-sidebar-navbar-collapse-1">
+        <div class="navbar-header navbar-header-fixed">
+            <button type="button" class="navbar-toggle navbar-button-fixed" data-toggle="collapse"
+                    data-target="#bs-sidebar-navbar-collapse-1">
                 <span class="sr-only">Toggle navigation</span>
                 <span class="icon-bar"></span>
                 <span class="icon-bar"></span>
@@ -49,82 +50,36 @@
                         <img src="/static/images/logo.png"></span></a>
                 </li>
 
-                {% block navbar_left %}{% end %}
+                {% block navbar_left %}
+                    {%if handler.services_list %}
+                        {% for i, (_service_id, service) in enumerate(handler.services_list.iteritems()) %}
+                            {% set location = service["location"] %}
+                            {% set service_metadata = service["metadata"] or {} %}
+
+                            {% set title = service_metadata.get("title", _service_id) %}
+                            {% set description = service_metadata.get("description", "") %}
+                            {% set icon = service_metadata.get("icon") %}
+
+                            <li
+                            {% if _service_id == handler.current_service %}
+                            class="active"
+                            {% end %} title="{{ description }}">
+                                <a href="/service/{{ _service_id }}/index">{{ title }}
+                                    <span style="font-size:16px;" class="pull-right hidden-xs showopacity">
+                                        {% if icon %}
+                                            <i class="fa fa-{{ icon }}" aria-hidden="true"></i>
+                                        {% end %}
+                                    </span>
+                                </a>
+                            </li>
+                        {% end %}
+                    {% end %}
+                {% end %}
 
                 {% if hasattr(handler, "gamespace_info") and handler.gamespace_info and "title" in handler.gamespace_info %}
                     {% set gamespace_title = handler.gamespace_info.get("title") %}
                 {% else %}
                     {% set gamespace_title = handler.gamespace %}
-                {% end %}
-
-                {% if auth %}
-                <li class="dropdown">
-                    <a href="#" class="dropdown-toggle" data-toggle="dropdown"
-                    role="button" aria-haspopup="true" aria-expanded="false">
-                    {{ name }}
-                    <span style="font-size:16px;" class="pull-right hidden-xs showopacity">
-                    <i class="fa fa-user" aria-hidden="true"></i></span>
-                    {% set admin_scopes = sum(1 for scope in handler.token.scopes if scope.endswith('admin')) - 1 %}
-                    {% if admin_scopes > 0 %}
-                    <span class="label label-danger">{{ admin_scopes }}</span>
-                    {% end %}
-                    <span class="caret"></span></a>
-                    <ul class="dropdown-menu">
-                        {% if avatar %}
-                        <li align="center"><img src="{{ avatar }}" class="img-circle" width="100px"></li>
-                        <li role="separator" class="divider"></li>
-                        {% end %}
-
-
-                        <li class="menu-info" align="center" data-container="body" data-popover="true"
-                            data-trigger="hover" data-placement="left"
-                            data-content="Time this access will expire. ">
-
-                            {% import datetime, common.access %}
-                            {{ datetime.timedelta(seconds=handler.token.expiration_date - common.access.utc_time()) }}
-                            <br>
-                        </li>
-                        <li role="separator" class="divider"></li>
-                        <li>
-                            {% import urllib, json %}
-                            <a href="/service/profile/profile?{{ urllib.urlencode({'context': json.dumps({'account': handler.token.account})}) }}">
-                                <i class="fa fa-user-secret" aria-hidden="true"></i>
-                                Your profile
-                            </a>
-                        </li>
-                        {% if gamespace_title %}
-                        <li class="menu-info" data-container="body" data-popover="true"
-                            data-trigger="hover" data-placement="left"
-                            data-content="Gamespace you are working in. Press to switch.">
-                            <a href="/gamespace">
-                                <i class="fa fa-folder-o" aria-hidden="true"></i>
-                                {{ gamespace_title }}
-
-                            </a>
-                        </li>
-                        {% end %}
-                        <li role="separator" class="divider"></li>
-
-                        <li class="menu-info" align="center" data-container="body" data-popover="true"
-                            data-trigger="hover" data-placement="left"
-                            data-content="List of scopes this account has access to now. A lot of 'admin' scopes considered dangerous. ">
-                            {% for scope in handler.token.scopes %}
-                            <span class="label {{ 'label-danger' if scope.endswith('admin') else 'label-default' }}">{{ scope }}</span>
-                            {% end %}
-                        </li>
-
-                        <script type="application/javascript">
-                            $(".menu-info").popover();
-                        </script>
-
-                        <li role="separator" class="divider"></li>
-                        <li class="fa-spin-hover">
-                            <a href="?refresh=1"><i class="fa fa-refresh" aria-hidden="true"></i> Refresh Service List</a>
-                        </li>
-                        <li><a href="/logout"><i class="fa fa-sign-out" aria-hidden="true"></i> Log out</a></li>
-                    </ul>
-                </li>
-
                 {% end %}
 
             </ul>
@@ -134,7 +89,94 @@
 
 <div class="main">
     {% block root2 %}
-    {% block navbar %}{% end %}
+
+    <ul id="service-breadcrumbs" class="breadcrumb list-inline">
+        {% block breadcrumbs %}{% end %}
+    </ul>
+    <ul class="nav nav-pills right-menu-fx">
+        {% if auth %}
+        <li class="dropdown">
+            <a href="#" class="dropdown-toggle" data-toggle="dropdown"
+            role="button" aria-haspopup="true" aria-expanded="false">
+                <span style="font-size:16px;" class="hidden-xs showopacity">
+                <i class="fa fa-user" aria-hidden="true"></i></span>
+                {{ name }}
+                {% set admin_scopes = sum(1 for scope in handler.token.scopes if scope.endswith('admin')) - 1 %}
+                {% if admin_scopes > 0 %}
+                <span class="label label-danger">{{ admin_scopes }}</span>
+                {% end %}
+                <span class="caret"></span>
+            </a>
+            <ul class="dropdown-menu">
+                {% if avatar %}
+                <li align="center"><img src="{{ avatar }}" class="img-circle" width="100px"></li>
+                <li role="separator" class="divider"></li>
+                {% end %}
+
+
+                <li class="menu-info" align="center" data-container="body" data-popover="true"
+                    data-trigger="hover" data-placement="left"
+                    data-content="Time this access will expire. ">
+
+                    {% import datetime, common.access %}
+                    {{ datetime.timedelta(seconds=handler.token.expiration_date - common.access.utc_time()) }}
+                    <br>
+                </li>
+                <li role="separator" class="divider"></li>
+                <li>
+                    {% import urllib, json %}
+                    <a href="/service/profile/profile?{{ urllib.urlencode({'context': json.dumps({'account': handler.token.account})}) }}">
+                        <i class="fa fa-user-secret" aria-hidden="true"></i>
+                        Your profile
+                    </a>
+                </li>
+                {% if gamespace_title %}
+                <li class="menu-info" data-container="body" data-popover="true"
+                    data-trigger="hover" data-placement="left"
+                    data-content="Gamespace you are working in. Press to switch.">
+                    <a href="/gamespace">
+                        <i class="fa fa-folder-o" aria-hidden="true"></i>
+                        {{ gamespace_title }}
+
+                    </a>
+                </li>
+                {% end %}
+                <li role="separator" class="divider"></li>
+
+                <li class="menu-info" align="center" data-container="body" data-popover="true"
+                    data-trigger="hover" data-placement="left"
+                    data-content="List of scopes this account has access to now. A lot of 'admin' scopes considered dangerous. ">
+                    {% for scope in handler.token.scopes %}
+                    <span class="label {{ 'label-danger' if scope.endswith('admin') else 'label-default' }}">{{ scope }}</span>
+                    {% end %}
+                </li>
+
+                <script type="application/javascript">
+                    $(".menu-info").popover();
+                </script>
+
+                <li role="separator" class="divider"></li>
+                <li class="fa-spin-hover">
+                    <a href="?refresh=1"><i class="fa fa-refresh" aria-hidden="true"></i> Refresh Service List</a>
+                </li>
+                <li><a href="/logout"><i class="fa fa-sign-out" aria-hidden="true"></i> Log out</a></li>
+            </ul>
+        </li>
+
+        {% end %}
+
+        <li>
+            <a href="/debug" target="_blank">
+                <span style="font-size:16px;" class="hidden-xs showopacity">
+                    <i class="fa fa-terminal" aria-hidden="true"></i></span>
+                Terminal
+            </a>
+        </li>
+
+
+    </ul>
+
+
     {% block main %}{% end %}
     {% block root %}{% end %}
     {% end %}

@@ -8,31 +8,39 @@
 
 {% block root %}
 
+<h1 align="center">
+    Anthill Platform Admin Tool
+</h1>
+
+<br>
+
 <div class="container">
     <div class="row flex">
-        {% for i, (service_id, service) in enumerate(services.iteritems()) %}
-            {% set location = service["location"] %}
+        {%if handler.services_list %}
+            {% for i, (service_id, service) in enumerate(handler.services_list.iteritems()) %}
+                {% set location = service["location"] %}
 
-            {% set metadata = service["metadata"] or {} %}
-            {% set title = metadata.get("title", service_id) %}
-            {% set description = metadata.get("description", "") %}
-            {% set icon = metadata.get("icon") %}
+                {% set metadata = service["metadata"] or {} %}
+                {% set title = metadata.get("title", service_id) %}
+                {% set description = metadata.get("description", "") %}
+                {% set icon = metadata.get("icon") %}
 
-            <div class="col-xs-6 col-sm-4 col-md-3 col-lg-3">
-                <div class="panel panel-default">
-                    <div class="panel-heading like-heading" align="center">
-                        <a href="/service/{{ service_id}}/index" class="btn btn-primary btn-group-justified">
-                            {% if icon %}
-                            <i class="fa fa-{{ icon }}" aria-hidden="true"></i>
-                            {% end %}{{ title }}
-                        </a>
-                    </div>
-                    <div class="panel-body">
-                        <p align="center">{{ description }}</p>
+                <div class="col-xs-6 col-sm-4 col-md-3 col-lg-3">
+                    <div class="panel panel-default">
+                        <div class="panel-heading like-heading" align="center">
+                            <a href="/service/{{ service_id}}/index" class="btn btn-primary btn-group-justified">
+                                {% if icon %}
+                                <i class="fa fa-{{ icon }}" aria-hidden="true"></i>
+                                {% end %}{{ title }}
+                            </a>
+                        </div>
+                        <div class="panel-body">
+                            <p align="center">{{ description }}</p>
+                        </div>
                     </div>
                 </div>
-            </div>
 
+            {% end %}
         {% end %}
     </div>
 </div>
