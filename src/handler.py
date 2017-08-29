@@ -1,4 +1,3 @@
-
 import urllib
 import ujson
 import traceback
@@ -10,7 +9,7 @@ import tornado.websocket
 import tornado.httpclient
 import tornado.ioloop
 
-from tornado.gen import coroutine, Return, Future
+from tornado.gen import coroutine, Return, Future, sleep
 from tornado.web import HTTPError, stream_request_body, RequestHandler
 from tornado.httpclient import AsyncHTTPClient, HTTPRequest
 from tornado.ioloop import IOLoop
@@ -32,7 +31,6 @@ from common.options import options
 
 
 class AdminAuthCallbackHandler(AuthCallbackHandler):
-
     def __init__(self, application, request, **kwargs):
         super(AdminAuthCallbackHandler, self).__init__(application, request, **kwargs)
         self.gamespace = ""
@@ -54,7 +52,7 @@ class AdminAuthCallbackHandler(AuthCallbackHandler):
         if "credential" in error:
             code += "<br><br>Credential: {0}".format(error["credential"])
 
-        self.render("template/error.html", title="", description=code)
+        self.render("template/error.html", error_title="", error_description=code)
 
 
 class AdminHandler(CookieAuthenticatedHandler):
@@ -79,8 +77,8 @@ class AdminHandler(CookieAuthenticatedHandler):
 
         self.render(
             "template/error.html",
-            title=status_code,
-            description=traceback.format_exc() if options.debug else traceback.format_exc(0))
+            error_title=status_code,
+            error_description=traceback.format_exc() if options.debug else traceback.format_exc(0))
 
     def external_auth_location(self):
         return self.application.external_auth_location
@@ -159,7 +157,6 @@ class DebugConsoleHandler(AdminHandler):
             method="access_restricted",
             ask_also=["profile", "profile_write"])
     def get(self):
-
         # ask discovery where it located externally
         # so console can access it
         discovery = yield common.discover.cache.get_service("discovery", "external")
@@ -430,7 +427,6 @@ class ServiceUploadAdminHandler(AdminHandler):
 
 
 class ServiceAdminHandler(AdminHandler):
-
     def __store_notice__(self, message, kind):
         notice = base64.b64encode(ujson.dumps({
             "kind": kind,
@@ -479,9 +475,10 @@ class ServiceAdminHandler(AdminHandler):
             if e.code == 404:
                 self.render(
                     "template/error.html",
-                    title="Cannot administrate this page.",
-                    description="Service <span class=\"badge\">{0}</span> has no api "
-                                "<span class=\"badge\">{1}</span> to administrate.".format(current_service, action))
+                    error_title="Cannot administrate this page.",
+                    error_description="Service <span class=\"badge\">{0}</span> has no api "
+                                      "<span class=\"badge\">{1}</span> to administrate.".format(
+                        current_service, action))
 
                 return
 
@@ -506,8 +503,8 @@ class ServiceAdminHandler(AdminHandler):
             if e.code == 599:
                 self.render(
                     "template/error.html",
-                    title="Service is down.",
-                    description="""
+                    error_title="Service is down.",
+                    error_description="""
                         Service <span class=\"badge\">{0}</span> appears to be down.<br>
                         Please try again later.
                     """.format(current_service))
@@ -687,7 +684,7 @@ class ServiceWSHandler(CookieAuthenticatedWSHandler):
         logging.error(reason)
 
     @coroutine
-    def opened(self, *args, **kwargs):
+    def on_opened(self, *args, **kwargs):
 
         service_id = self.get_argument("service")
         context = self.get_argument("context")
@@ -724,18 +721,9 @@ class ServiceWSHandler(CookieAuthenticatedWSHandler):
                 "access_token": self.token.key
             })
 
-        def message_from_conn(message):
-            if message is None:
-                self.close(self.conn.close_code, self.conn.close_reason)
-                return
-
-            self.write_message(message)
-
         while True:
             try:
-                self.conn = yield tornado.websocket.websocket_connect(
-                    url=destination,
-                    on_message_callback=message_from_conn)
+                self.conn = yield tornado.websocket.websocket_connect(destination)
             except tornado.httpclient.HTTPError as e:
 
                 if e.code == common.admin.REDIRECT:
@@ -763,14 +751,30 @@ class ServiceWSHandler(CookieAuthenticatedWSHandler):
                     self.close(e.code, str(reason))
                     return
             else:
+                yield self.read_messages(service_id, action)
                 break
+
+    @coroutine
+    def read_messages(self, service_id, action):
+        while True:
+            message = yield self.conn.read_message()
+
+            if message is None:
+                if self.conn.close_code:
+                    self.close(self.conn.close_code, self.conn.close_reason)
+                else:
+                    self.close(500, "Internal Server Error WS on {0}: {1}".format(service_id, action))
+                return
+
+            self.write_message(message)
 
     def on_message(self, message):
         if self.conn is not None:
             self.conn.write_message(message)
 
     @coroutine
-    def closed(self):
+    def on_closed(self):
+        logging.info("Service WS connection closed")
         if self.conn is not None:
             self.conn.close(self.close_code, self.close_reason)
 
