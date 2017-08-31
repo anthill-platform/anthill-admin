@@ -124,7 +124,10 @@ class AdminHandler(CookieAuthenticatedHandler):
                 self.redirect("/")
                 return
 
+            gamespace_id = self.token.get(AccessToken.GAMESPACE)
+
             try:
+
                 # noinspection PyUnusedLocal
                 @cached(kv=self.application.cache,
                         h=lambda: "profile_" + str(self.token.account),
@@ -132,12 +135,14 @@ class AdminHandler(CookieAuthenticatedHandler):
                         json=True)
                 @coroutine
                 def get_profile():
-                    profile_content = yield self.application.internal.get(
-                        "profile",
-                        "profile/me",
-                        {
-                            "access_token": self.token.key
-                        })
+                    try:
+                        profile_content = yield self.application.internal.send_request(
+                            "profile",
+                            "get_my_profile",
+                            gamespace_id=gamespace_id,
+                            account_id=self.token.account)
+                    except InternalError:
+                        raise Return({"name": "Unknown"})
 
                     raise Return(profile_content)
 
