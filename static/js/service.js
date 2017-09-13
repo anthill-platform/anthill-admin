@@ -296,9 +296,10 @@ RENDERERS = {
                                 }
 
                                 var to = body["redirect-to"];
+                                var service = data["redirect-service"] || SERVICE;
                                 var ctx = body["context"];
 
-                                document.location.href = '/service/' + SERVICE + '/' + to +
+                                document.location.href = '/service/' + service + '/' + to +
                                     '?context=' + encodeURIComponent(JSON.stringify(ctx));
 
                                 break;
@@ -909,9 +910,10 @@ RENDERERS = {
                                 }
 
                                 var to = body["redirect-to"];
+                                var service = data["redirect-service"] || SERVICE;
                                 var ctx = body["context"];
 
-                                document.location.href = '/service/' + SERVICE + '/' + to +
+                                document.location.href = '/service/' + service + '/' + to +
                                     '?context=' + encodeURIComponent(JSON.stringify(ctx));
 
                                 break;
