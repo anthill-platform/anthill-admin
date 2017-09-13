@@ -83,6 +83,9 @@ class AdminHandler(CookieAuthenticatedHandler):
     def external_auth_location(self):
         return self.application.external_auth_location
 
+    def need_profile(self):
+        return True
+
     def access_restricted(self, scopes=None, ask_also=None):
 
         if self.gamespace is None:
@@ -126,32 +129,33 @@ class AdminHandler(CookieAuthenticatedHandler):
 
             gamespace_id = self.token.get(AccessToken.GAMESPACE)
 
-            try:
+            if self.need_profile():
+                try:
 
-                # noinspection PyUnusedLocal
-                @cached(kv=self.application.cache,
-                        h=lambda: "profile_" + str(self.token.account),
-                        ttl=300,
-                        json=True)
-                @coroutine
-                def get_profile():
-                    try:
-                        profile_content = yield self.application.internal.send_request(
-                            "profile",
-                            "get_my_profile",
-                            gamespace_id=gamespace_id,
-                            account_id=self.token.account)
-                    except InternalError:
-                        raise Return({"name": "Unknown"})
+                    # noinspection PyUnusedLocal
+                    @cached(kv=self.application.cache,
+                            h=lambda: "profile_" + str(self.token.account),
+                            ttl=300,
+                            json=True)
+                    @coroutine
+                    def get_profile():
+                        try:
+                            profile_content = yield self.application.internal.send_request(
+                                "profile",
+                                "get_my_profile",
+                                gamespace_id=gamespace_id,
+                                account_id=self.token.account)
+                        except InternalError:
+                            raise Return({"name": "Unknown"})
 
-                    raise Return(profile_content)
+                        raise Return(profile_content)
 
-                profile = yield get_profile()
+                    profile = yield get_profile()
 
-            except InternalError:
-                self.profile = {"name": "Unknown"}
-            else:
-                self.profile = profile
+                except InternalError:
+                    self.profile = {"name": "Unknown"}
+                else:
+                    self.profile = profile
 
             self.services_list = yield admin.list_services_with_metadata(self.token.key)
 
@@ -295,10 +299,11 @@ class ServiceAPIHandler(AuthenticatedHandler):
                 data = ujson.loads(response.body)
 
                 redirect_to = data["redirect-to"]
+                redirect_service = data.get("redirect-service", service_id)
                 context_data = data["context"]
 
                 redirect_data = {
-                    "service": service_id,
+                    "service": redirect_service,
                     "action": redirect_to,
                     "access_token": self.current_user.token.key,
                     "context": ujson.dumps(context_data)
@@ -342,6 +347,9 @@ class ServiceUploadAdminHandler(AdminHandler):
             if chunk is None:
                 return
             yield write(chunk)
+
+    def need_profile(self):
+        return False
 
     @coroutine
     def data_received(self, chunk):
@@ -492,6 +500,7 @@ class ServiceAdminHandler(AdminHandler):
                 data = ujson.loads(response.body)
 
                 redirect_to = data["redirect-to"]
+                redirect_service = data.get("redirect-service", current_service)
                 context_data = data["context"]
 
                 redirect_data = {
@@ -501,7 +510,7 @@ class ServiceAdminHandler(AdminHandler):
                 if "notice" in data:
                     self.__store_notice__(data["notice"], "info")
 
-                url = "/service/" + current_service + "/" + redirect_to
+                url = "/service/" + redirect_service + "/" + redirect_to
                 self.redirect(url + "?" + urllib.urlencode(redirect_data))
                 return
 
@@ -608,6 +617,7 @@ class ServiceAdminHandler(AdminHandler):
                     data = ujson.loads(response.body)
 
                     redirect_to = data["redirect-to"]
+                    redirect_service = data.get("redirect-service", service_id)
                     context_data = data["context"]
 
                     redirect_data = {
@@ -617,7 +627,7 @@ class ServiceAdminHandler(AdminHandler):
                     if "notice" in data:
                         self.__store_notice__(data["notice"], "info")
 
-                    url = "/service/" + service_id + "/" + redirect_to
+                    url = "/service/" + redirect_service + "/" + redirect_to
                     self.redirect(url + "?" + urllib.urlencode(redirect_data))
                     return
                 if e.code == common.admin.ACTION_ERROR:
