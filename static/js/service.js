@@ -17,9 +17,11 @@ RENDERERS = {
     notice: {
         render: function(data)
         {
-            return $('<div class="panel panel-info">' +
+            var style = data.style || "info";
+
+            return $('<div class="panel panel-' + style + '">' +
                 '<div class="panel-heading">' +
-                '<h3 class="panel-title">' + data.title + '</h3>' +
+                '<h3 class="panel-title"><i class="fa fa-warning" aria-hidden="true"></i> ' + data.title + '</h3>' +
                 '</div>' +
                 '<div class="panel-body">' + data.text + '</div></div>');
         }
@@ -597,6 +599,12 @@ RENDERERS = {
             },
             readonly: function(name, value, data)
             {
+                if (data.multiline)
+                {
+                    return $('<textarea class="form-control" rows="' + data.multiline + '"  readonly>' +
+                        value + '</textarea>');
+                }
+
                 return $('<input type="text" class="form-control" value="' + value + '" readonly>');
             },
             file: function(name, value, data)
