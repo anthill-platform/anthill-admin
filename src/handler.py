@@ -381,6 +381,9 @@ class ServiceUploadAdminHandler(AdminHandler):
         try:
             response = yield self.client.fetch(request)
         except Exception as e:
+            logging.exception("Failed to upload file to service {0}".format(
+                service_location
+            ))
             self.send_complete.set_exception(e)
         else:
             self.send_complete.set_result(response)
