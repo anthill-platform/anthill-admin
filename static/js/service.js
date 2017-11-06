@@ -742,16 +742,34 @@ RENDERERS = {
                     }
                 });
 
-                d.val(JSON.stringify(value));
+                if (data.parse)
+                {
+                    d.val(value);
 
-                try
-                {
-                    editor.set(value);
+                    try
+                    {
+                        editor.set(JSON.parse(value));
+                    }
+                    catch (e)
+                    {
+                        //
+                    }
                 }
-                catch (e)
+                else
                 {
-                    //
+                    d.val(JSON.stringify(value));
+
+                    try
+                    {
+                        editor.set(value);
+                    }
+                    catch (e)
+                    {
+                        //
+                    }
                 }
+
+
 
                 return parent;
             },
@@ -1060,6 +1078,7 @@ RENDERERS = {
                         '" class="btn btn-space btn-' + method.style + '"' +
                         (method.danger ? ' data-danger="' + method.danger + '"': "") +
                         (method.doublecheck ? ' data-doublecheck="' + method.doublecheck + '"' : "") + '>' +
+                        (method.icon ? '<i class="fa fa-' + method.icon + '" aria-hidden="true"></i> ' : '') +
                         method.title + '</button>');
 
                     if (method.style == "danger")

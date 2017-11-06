@@ -498,6 +498,12 @@ class ServiceAdminHandler(AdminHandler):
 
                 return
 
+            if e.code == common.admin.BINARY_FILE:
+                filename = e.response.headers["File-Name"]
+                self.set_header("Content-Disposition", "attachment; filename=" + str(filename))
+                self.write(e.response.body)
+                return
+
             if e.code == common.admin.REDIRECT:
                 response = e.response
                 data = ujson.loads(response.body)
@@ -614,6 +620,12 @@ class ServiceAdminHandler(AdminHandler):
                 return
             else:
                 do_raise = True
+
+                if e.code == common.admin.BINARY_FILE:
+                    filename = e.response.headers["File-Name"]
+                    self.set_header("Content-Disposition: attachment; filename=" + str(filename))
+                    self.write(e.response.body)
+                    return
 
                 if e.code == common.admin.REDIRECT:
                     response = e.response
