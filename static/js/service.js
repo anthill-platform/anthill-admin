@@ -886,22 +886,31 @@ RENDERERS = {
                 {
                     e.preventDefault();
 
-                    var btn = $(document.activeElement);
+                    var btn;
 
-                    if (! btn.length ||
-                        ! form.has(btn) ||
-                        ! btn.is('button[type="submit"], input[type="submit"], input[type="image"]') ||
-                        ! btn.is('[name]') )
+                    if (e.originalEvent.explicitOriginalTarget != null)
                     {
-                        var buttons = form.find('button[type="submit"]');
+                        btn = e.originalEvent.explicitOriginalTarget;
+                    }
+                    else
+                    {
+                        btn = $(document.activeElement);
 
-                        if (buttons.length == 1)
+                        if (! btn.length ||
+                            ! form.has(btn) ||
+                            ! btn.is('button[type="submit"], input[type="submit"], input[type="image"]') ||
+                            ! btn.is('[name]') )
                         {
-                            btn = buttons[0];
-                        }
-                        else
-                        {
-                            return;
+                            var buttons = form.find('button[type="submit"]');
+
+                            if (buttons.length == 1)
+                            {
+                                btn = buttons[0];
+                            }
+                            else
+                            {
+                                return;
+                            }
                         }
                     }
 
