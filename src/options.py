@@ -33,7 +33,7 @@ define("cache_port",
        type=int)
 
 define("cache_db",
-       default=8,
+       default=4,
        help="Database of regular cache (redis).",
        group="cache",
        type=int)
