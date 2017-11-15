@@ -51,7 +51,7 @@
                 </li>
 
                 {% block navbar_left %}
-                    {%if handler.services_list %}
+                    {%if hasattr(handler, "services_list") and handler.services_list %}
                         {% for i, (_service_id, service) in enumerate(handler.services_list.iteritems()) %}
                             {% set location = service["location"] %}
                             {% set service_metadata = service["metadata"] or {} %}

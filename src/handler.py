@@ -140,7 +140,7 @@ class AdminHandler(CookieAuthenticatedHandler):
                     @coroutine
                     def get_profile():
                         try:
-                            profile_content = yield self.application.internal.send_request(
+                            profile_content = yield self.application.internal.request(
                                 "profile",
                                 "get_my_profile",
                                 gamespace_id=gamespace_id,
