@@ -156,6 +156,14 @@
                 </script>
 
                 <li role="separator" class="divider"></li>
+                {% if "admin_audit_log" in handler.token.scopes %}
+                <li>
+                    <a href="/service/admin/audit">
+                        <i class="fa fa-file-text-o" aria-hidden="true"></i>
+                        Audit Log
+                    </a>
+                </li>
+                {% end %}
                 <li class="fa-spin-hover">
                     <a href="?refresh=1"><i class="fa fa-refresh" aria-hidden="true"></i> Refresh Service List</a>
                 </li>

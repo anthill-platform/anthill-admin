@@ -3,6 +3,8 @@ import ujson
 import traceback
 import base64
 import logging
+import math
+
 from urlparse import urlsplit
 
 import tornado.websocket
@@ -25,9 +27,13 @@ import common.discover
 
 from common import cached
 from common.access import scoped, AccessToken, parse_scopes
-from common.internal import InternalError
+from common.internal import InternalError, Internal
 from common.discover import DiscoveryError
 from common.options import options
+
+from model.audit import AuditLogError
+
+import common.admin as a
 
 
 class AdminAuthCallbackHandler(AuthCallbackHandler):
@@ -452,7 +458,7 @@ class ServiceAdminHandler(AdminHandler):
         self.set_cookie("notice", notice)
 
     @coroutine
-    @scoped(scopes=["admin"], method="access_restricted", ask_also=["profile", "profile_write"])
+    @scoped(scopes=["admin"], method="access_restricted", ask_also=["profile", "profile_write", "admin_audit_log"])
     def get(self, current_service, action):
 
         context = self.get_argument("context", "{}")
@@ -557,6 +563,34 @@ class ServiceAdminHandler(AdminHandler):
             context=context_data,
             notice=notice)
 
+    @coroutine
+    def __parse_audit__(self, headers, service_name, service_action):
+        log = headers.get("Audit-Log", None)
+        if not log:
+            return
+
+        gamespace_id = self.token.get(AccessToken.GAMESPACE)
+        account_id = self.token.account
+        audit = self.application.audit
+
+        try:
+            unpacked = ujson.loads(log)
+        except (KeyError, ValueError):
+            logging.exception("Failed to parse audit log")
+        else:
+            if not isinstance(unpacked, dict):
+                return
+
+            action_icon = unpacked.get("icon")
+            action_message = unpacked.get("message")
+            action_payload = unpacked.get("payload")
+
+            if not action_icon or action_payload is None or not action_message:
+                return
+
+            yield audit.audit_log(gamespace_id, service_name, service_action, action_icon,
+                                  action_message, action_payload, account_id)
+
     def access_restricted(self, scopes=None, ask_also=None):
         ajax = self.get_argument("ajax", "false") == "true"
 
@@ -601,7 +635,7 @@ class ServiceAdminHandler(AdminHandler):
         arguments_data = ujson.dumps(arguments)
 
         try:
-            data = yield self.application.internal.post(
+            data, headers = yield self.application.internal.post(
                 service_id,
                 "@admin", {
                     "context": ujson.dumps(context_data),
@@ -609,9 +643,11 @@ class ServiceAdminHandler(AdminHandler):
                     "method": method,
                     "data": arguments_data,
                     "access_token": self.current_user.token.key
-                })
+                }, return_headers=True)
         except InternalError as e:
             data = {}
+
+            yield self.__parse_audit__(e.response.headers, service_id, action)
 
             if ajax:
                 self.set_status(e.code, "Error")
@@ -623,7 +659,7 @@ class ServiceAdminHandler(AdminHandler):
 
                 if e.code == common.admin.BINARY_FILE:
                     filename = e.response.headers["File-Name"]
-                    self.set_header("Content-Disposition: attachment; filename=" + str(filename))
+                    self.set_header("Content-Disposition", "attachment; filename=" + str(filename))
                     self.write(e.response.body)
                     return
 
@@ -645,6 +681,7 @@ class ServiceAdminHandler(AdminHandler):
                     url = "/service/" + redirect_service + "/" + redirect_to
                     self.redirect(url + "?" + urllib.urlencode(redirect_data))
                     return
+
                 if e.code == common.admin.ACTION_ERROR:
                     do_raise = False
 
@@ -682,6 +719,8 @@ class ServiceAdminHandler(AdminHandler):
 
                 if do_raise:
                     raise HTTPError(e.code, e.body)
+        else:
+            yield self.__parse_audit__(headers, service_id, action)
 
         if ajax:
             self.dumps(data)
@@ -851,6 +890,119 @@ class IndexHandler(AdminHandler):
     @coroutine
     @scoped(scopes=["admin"],
             method="access_restricted",
-            ask_also=["profile", "profile_write"])
+            ask_also=["profile", "profile_write", "admin_audit_log"])
     def get(self):
         self.render("template/index.html")
+
+
+class AuditLogHandler(a.AdminController):
+    ENTRIES_PER_PAGE = 50
+
+    @coroutine
+    def get(self, page=1):
+        audit = self.application.audit
+
+        offset = (int(page) - 1) * AuditLogHandler.ENTRIES_PER_PAGE
+        limit = AuditLogHandler.ENTRIES_PER_PAGE
+
+        try:
+            entries, total_count = yield audit.list_paged_count(self.gamespace, offset=offset, limit=limit)
+        except AuditLogError as e:
+            raise a.ActionError(e.message)
+
+        pages = int(math.ceil(float(total_count) / float(AuditLogHandler.ENTRIES_PER_PAGE)))
+
+        services_list = yield self.application.admin.list_services_with_metadata(self.token.key)
+
+        author_ids = set()
+        for entry in entries:
+            entry.author_name = str(entry.author)
+
+            metadata = services_list.get(entry.service_name, {}).get("metadata", {})
+
+            entry.service_icon = metadata.get("icon", None)
+            entry.service_title = metadata.get("title", entry.service_name)
+
+            author_ids.add(entry.author)
+
+        internal = Internal()
+
+        try:
+            profiles = yield internal.send_request(
+                "profile", "mass_profiles",
+                accounts=author_ids,
+                gamespace=self.gamespace,
+                action="get_public",
+                profile_fields=["name"])
+        except InternalError as e:
+            pass  # well
+        else:
+            for entry in entries:
+                profile = profiles.get(str(entry.author))
+                if profile:
+                    entry.author_name = profile.get("name")
+
+        raise Return({
+            "entries": entries,
+            "pages": pages
+        })
+
+    def access_scopes(self):
+        return ["admin_audit_log"]
+
+    @staticmethod
+    def __generate_diff__(entry):
+        changes = entry.payload.get("changes")
+
+        return {
+            key.replace("_", " ").title(): value
+            for key, value in changes.iteritems()
+        }
+
+    def render(self, data):
+        return [
+            a.breadcrumbs([], "Audit Log"),
+            a.content(title="Log Entries", headers=[
+                {
+                    "id": "time",
+                    "title": "Time"
+                },
+                {
+                    "id": "service_name",
+                    "title": "Service Name"
+                },
+                {
+                    "id": "service_action",
+                    "title": "Action"
+                },
+                {
+                    "id": "author",
+                    "title": "Author"
+                },
+                {
+                    "id": "info",
+                    "title": "Info"
+                }
+            ], items=[
+                {
+                    "author": [
+                        a.link("/profile/profile", entry.author_name, icon="user", badge="", account=entry.author)
+                    ],
+                    "service_name": [
+                        a.link("/{0}/index".format(entry.service_name), entry.service_title,
+                               icon=entry.service_icon, badge="")
+                    ],
+                    "time": str(entry.date),
+                    "service_action": [
+                        a.link("/{0}/{1}".format(entry.service_name,
+                                                 entry.service_action),
+                               entry.message, icon=entry.icon, badge="", **entry.payload.get("context", {}))
+                    ],
+                    "info": [
+                        a.json_view(AuditLogHandler.__generate_diff__(entry))
+                    ]
+                }
+                for entry in data["entries"]
+            ], style="default"),
+            a.pages(data["pages"])
+        ]

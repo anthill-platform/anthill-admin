@@ -1295,12 +1295,9 @@ function render_link(link)
         }
     }
 
-    if (additional == '')
+    if (badge != undefined)
     {
-        if (badge != undefined)
-        {
-            additional = ' <span class="badge">' + badge + '</span>';
-        }
+        additional = ' <span class="badge">' + badge + '</span>';
     }
 
     return $('<li role="presentation"><a href="' + url + '">' +

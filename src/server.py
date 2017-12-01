@@ -14,13 +14,15 @@ import common.handler
 import handler
 import options as _opts
 
+from model.audit import AuditLogModel
 from model.admin import AdminModel
+
 from common import retry
 
 
 class AdminServer(common.server.Server):
     # noinspection PyShadowingNames
-    def __init__(self):
+    def __init__(self, db=None):
         super(AdminServer, self).__init__()
 
         self.cache = common.keyvalue.KeyValueStorage(
@@ -29,6 +31,13 @@ class AdminServer(common.server.Server):
             db=options.cache_db,
             max_connections=options.cache_max_connections)
 
+        self.db = db or common.database.Database(
+            host=options.db_host,
+            database=options.db_name,
+            user=options.db_username,
+            password=options.db_password)
+
+        self.audit = AuditLogModel(self.db)
         self.admin = AdminModel(self, self.cache)
         self.external_auth_location = None
 
@@ -48,6 +57,11 @@ class AdminServer(common.server.Server):
             (r"/debug", handler.DebugConsoleHandler),
             (r"/logout", common.handler.LogoutHandler)
         ]
+
+    def get_admin(self):
+        return {
+            "audit": handler.AuditLogHandler
+        }
 
     def get_root_handler(self):
         return handler.IndexHandler

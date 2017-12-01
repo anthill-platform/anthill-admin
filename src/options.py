@@ -43,3 +43,25 @@ define("cache_max_connections",
        help="Maximum connections to the regular cache (connection pool).",
        group="cache",
        type=int)
+
+# MySQL database
+
+define("db_host",
+       default="127.0.0.1",
+       type=str,
+       help="MySQL database location")
+
+define("db_username",
+       default="root",
+       type=str,
+       help="MySQL account username")
+
+define("db_password",
+       default="",
+       type=str,
+       help="MySQL account password")
+
+define("db_name",
+       default="dev_admin",
+       type=str,
+       help="MySQL database name")
