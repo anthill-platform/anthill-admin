@@ -647,7 +647,8 @@ class ServiceAdminHandler(AdminHandler):
         except InternalError as e:
             data = {}
 
-            yield self.__parse_audit__(e.response.headers, service_id, action)
+            if e.response is not None:
+                yield self.__parse_audit__(e.response.headers, service_id, action)
 
             if ajax:
                 self.set_status(e.code, "Error")
