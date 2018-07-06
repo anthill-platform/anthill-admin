@@ -9,10 +9,10 @@
             <div class="form-group">
                 <select class="form-control" id="gamespace" name="gamespace" title="Gamespace">
                 {% for gamespace in gamespaces %}
-                    {% if gamespace["name"] == selected %}
-                        <option value="{{ gamespace['name'] }}" selected="selected">{{ gamespace["name"] }}</option>
+                    {% if gamespace.name == selected %}
+                        <option value="{{ gamespace.name }}" selected="selected">{{ gamespace.name }}</option>
                     {% else %}
-                        <option value="{{ gamespace['name'] }}">{{ gamespace["name"] }}</option>
+                        <option value="{{ gamespace.name }}">{{ gamespace.name }}</option>
                     {% end %}
                 {% end %}
                 </select>

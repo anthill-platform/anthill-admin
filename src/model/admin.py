@@ -5,6 +5,7 @@ import common.discover
 
 from common.model import Model
 from common.internal import Internal, InternalError
+from common.login import LoginClient, LoginClientError
 from common import cached
 
 import logging
@@ -115,24 +116,9 @@ class AdminModel(Model):
 
     @coroutine
     def get_gamespace_info(self, gamespace_name):
-
-        @cached(kv=self.cache,
-                h=lambda: "gamespace_info:" + gamespace_name,
-                ttl=300,
-                json=True)
-        @coroutine
-        def get():
-            try:
-                response = yield self.internal.request(
-                    "login",
-                    "get_gamespace",
-                    name=gamespace_name)
-
-            except InternalError as e:
-                raise Return(None)
-            else:
-                raise Return(response)
-
-        gamespace_info = yield get()
-
+        login_client = LoginClient(self.cache)
+        try:
+            gamespace_info = yield login_client.find_gamespace(gamespace_name)
+        except LoginClientError:
+            gamespace_info = None
         raise Return(gamespace_info)

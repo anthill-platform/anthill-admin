@@ -19,6 +19,7 @@ from tornado.queues import Queue
 
 from common.handler import AuthCallbackHandler, AuthenticatedHandler
 from common.handler import CookieAuthenticatedHandler, CookieAuthenticatedWSHandler
+from common.login import LoginClient, LoginClientError
 
 import common.access
 import common.discover
@@ -185,7 +186,13 @@ class DebugConsoleHandler(AdminHandler):
 class SelectGamespaceHandler(AdminHandler):
     @coroutine
     def get(self):
-        gamespaces = yield self.application.get_gamespace_list()
+
+        login_client = LoginClient(self.application.cache)
+
+        try:
+            gamespaces = yield login_client.get_gamespaces()
+        except LoginClientError as e:
+            raise a.ActionError(e.message)
 
         self.render(
             "template/gamespace.html",
@@ -201,11 +208,18 @@ class SelectGamespaceHandler(AdminHandler):
         if self.current_user is not None:
             token = self.current_user.token
 
-            current_gamespace = yield self.application.get_gamespace(gamespace)
+            login_client = LoginClient(self.application.cache)
+
+            try:
+                current_gamespace = yield login_client.find_gamespace(gamespace)
+            except LoginClientError as e:
+                raise HTTPError(e.code, e.message)
+
+            current_gamespace_id = current_gamespace.gamespace_id
 
             new_gamespace = token.get(AccessToken.GAMESPACE)
 
-            if current_gamespace != new_gamespace:
+            if current_gamespace_id != new_gamespace:
                 self.logout()
 
         self.redirect("/")
