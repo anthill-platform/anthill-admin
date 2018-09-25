@@ -52,7 +52,7 @@
 
                 {% block navbar_left %}
                     {%if hasattr(handler, "services_list") and handler.services_list %}
-                        {% for i, (_service_id, service) in enumerate(handler.services_list.iteritems()) %}
+                        {% for i, (_service_id, service) in enumerate(handler.services_list.items()) %}
                             {% set location = service["location"] %}
                             {% set service_metadata = service["metadata"] or {} %}
 
@@ -118,14 +118,14 @@
                     data-trigger="hover" data-placement="left"
                     data-content="Time this access will expire. ">
 
-                    {% import datetime, common.access %}
-                    {{ datetime.timedelta(seconds=handler.token.expiration_date - common.access.utc_time()) }}
+                    {% import datetime, anthill.common.access %}
+                    {{ datetime.timedelta(seconds=handler.token.expiration_date - anthill.common.access.utc_time()) }}
                     <br>
                 </li>
                 <li role="separator" class="divider"></li>
                 <li>
                     {% import urllib, json %}
-                    <a href="/service/profile/profile?{{ urllib.urlencode({'context': json.dumps({'account': handler.token.account})}) }}">
+                    <a href="/service/profile/profile?{{ urllib.parse.urlencode({'context': json.dumps({'account': handler.token.account})}) }}">
                         <i class="fa fa-user-secret" aria-hidden="true"></i>
                         Your profile
                     </a>

@@ -17,7 +17,7 @@
 <div class="container">
     <div class="row flex">
         {%if handler.services_list %}
-            {% for i, (service_id, service) in enumerate(handler.services_list.iteritems()) %}
+            {% for i, (service_id, service) in enumerate(handler.services_list.items()) %}
                 {% set location = service["location"] %}
 
                 {% set metadata = service["metadata"] or {} %}

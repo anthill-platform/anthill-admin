@@ -1,9 +1,7 @@
 
-from tornado.gen import coroutine, Return
-
-from common.model import Model
-from common.database import DatabaseError
-from common.validate import validate
+from anthill.common.model import Model
+from anthill.common.database import DatabaseError
+from anthill.common.validate import validate
 
 import ujson
 
@@ -36,13 +34,12 @@ class AuditLogModel(Model):
     def get_setup_db(self):
         return self.db
 
-    @coroutine
     @validate(gamespace_id="int", service_name="str_name", service_action="str_name",
               action_icon="str", action_message="str", action_payload="json_dict", action_author="int")
-    def audit_log(self, gamespace_id, service_name, service_action, action_icon,
-                  action_message, action_payload, action_author):
+    async def audit_log(self, gamespace_id, service_name, service_action, action_icon,
+                        action_message, action_payload, action_author):
         try:
-            yield self.db.execute(
+            await self.db.execute(
                 """
                 INSERT INTO `audit_log`
                 (`gamespace_id`, `service_name`, `service_action`, 
@@ -54,12 +51,12 @@ class AuditLogModel(Model):
         except DatabaseError as e:
             raise AuditLogError(500, e.args[1])
 
-    @coroutine
-    def list_log(self, gamespace_id, offset=0, limit=100):
+    async def list_log(self, gamespace_id, offset=0, limit=100):
         try:
-            entries = yield self.db.query(
+            entries = await self.db.query(
                 """
-                SELECT SQL_CALC_FOUND_ROWS * FROM `audit_log`
+                SELECT SQL_CALC_FOUND_ROWS * 
+                FROM `audit_log`
                 WHERE `gamespace_id`=%s
                 ORDER BY `action_date` DESC
                 LIMIT %s, %s;
@@ -68,21 +65,21 @@ class AuditLogModel(Model):
         except DatabaseError as e:
             raise AuditLogError(500, e.args[1])
         else:
-            raise Return(map(AuditLogActionAdapter, entries))
+            return map(AuditLogActionAdapter, entries)
 
-    @coroutine
-    def list_paged_count(self, gamespace_id, offset=0, limit=100):
+    async def list_paged_count(self, gamespace_id, offset=0, limit=100):
         try:
-            with (yield self.db.acquire()) as db:
-                entries = yield db.query(
+            async with self.db.acquire() as db:
+                entries = await db.query(
                     """
-                    SELECT SQL_CALC_FOUND_ROWS * FROM `audit_log`
+                    SELECT SQL_CALC_FOUND_ROWS * 
+                    FROM `audit_log`
                     WHERE `gamespace_id`=%s
                     ORDER BY `action_date` DESC
                     LIMIT %s, %s;
                     """, gamespace_id, offset, limit)
 
-                count_result = yield db.get(
+                count_result = await db.get(
                     """
                         SELECT FOUND_ROWS() AS count;
                     """)
@@ -91,4 +88,4 @@ class AuditLogModel(Model):
         except DatabaseError as e:
             raise AuditLogError(500, e.args[1])
         else:
-            raise Return((map(AuditLogActionAdapter, entries), total_rows))
+            return map(AuditLogActionAdapter, entries), total_rows

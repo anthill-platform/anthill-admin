@@ -1,40 +1,34 @@
-import urllib
-import ujson
-import traceback
-import base64
-import logging
-import math
-
-from urlparse import urlsplit
+from urllib import parse
 
 import tornado.websocket
 import tornado.httpclient
 import tornado.ioloop
 
-from tornado.gen import coroutine, Return, Future, sleep
+from tornado.gen import Future
 from tornado.web import HTTPError, stream_request_body, RequestHandler
 from tornado.httpclient import AsyncHTTPClient, HTTPRequest
 from tornado.ioloop import IOLoop
 from tornado.queues import Queue
 
-from common.handler import AuthCallbackHandler, AuthenticatedHandler
-from common.handler import CookieAuthenticatedHandler, CookieAuthenticatedWSHandler
-from common.login import LoginClient, LoginClientError
+from anthill.common.handler import AuthCallbackHandler, AuthenticatedHandler
+from anthill.common.handler import CookieAuthenticatedHandler, CookieAuthenticatedWSHandler
+from anthill.common.login import LoginClient, LoginClientError
 
-import common.access
-import common.discover
-import common.admin
-import common.discover
+from anthill.common import admin, discover, cached
+from anthill.common.access import scoped, AccessToken, parse_scopes
+from anthill.common.internal import InternalError, Internal
+from anthill.common.discover import DiscoveryError
+from anthill.common.options import options
 
-from common import cached
-from common.access import scoped, AccessToken, parse_scopes
-from common.internal import InternalError, Internal
-from common.discover import DiscoveryError
-from common.options import options
+from .model.audit import AuditLogError
 
-from model.audit import AuditLogError
+import anthill.common.admin as a
 
-import common.admin as a
+import ujson
+import traceback
+import base64
+import logging
+import math
 
 
 class AdminAuthCallbackHandler(AuthCallbackHandler):
@@ -113,24 +107,22 @@ class AdminHandler(CookieAuthenticatedHandler):
             current_user.profile = self.profile
         return current_user
 
-    @coroutine
-    def prepare(self):
-
-        yield super(AdminHandler, self).prepare()
+    async def prepare(self):
+        await super(AdminHandler, self).prepare()
 
         self.gamespace = self.get_cookie("gamespace", None)
-        admin = self.application.admin
+        admin_model = self.application.admin
 
         if self.gamespace:
             # look up some info
-            self.gamespace_info = yield admin.get_gamespace_info(self.gamespace)
+            self.gamespace_info = await admin_model.get_gamespace_info(self.gamespace)
 
         if self.token:
 
             services = self.application.admin
 
             if self.get_argument("refresh", "0") == "1":
-                yield services.clear_cache()
+                await services.clear_cache()
                 self.redirect("/")
                 return
 
@@ -138,44 +130,41 @@ class AdminHandler(CookieAuthenticatedHandler):
 
             if self.need_profile():
                 try:
-
                     # noinspection PyUnusedLocal
                     @cached(kv=self.application.cache,
                             h=lambda: "profile_" + str(self.token.account),
                             ttl=300,
                             json=True)
-                    @coroutine
-                    def get_profile():
+                    async def get_profile():
                         try:
-                            profile_content = yield self.application.internal.request(
+                            profile_content = await Internal().request(
                                 "profile",
                                 "get_my_profile",
                                 gamespace_id=gamespace_id,
                                 account_id=self.token.account)
                         except InternalError:
-                            raise Return({"name": "Unknown"})
+                            return {"name": "Unknown"}
 
-                        raise Return(profile_content)
+                        return profile_content
 
-                    profile = yield get_profile()
+                    profile = await get_profile()
 
                 except InternalError:
                     self.profile = {"name": "Unknown"}
                 else:
                     self.profile = profile
 
-            self.services_list = yield admin.list_services_with_metadata(self.token.key)
+            self.services_list = await admin_model.list_services_with_metadata(self.token.key)
 
 
 class DebugConsoleHandler(AdminHandler):
-    @coroutine
     @scoped(scopes=["admin"],
             method="access_restricted",
             ask_also=["profile", "profile_write"])
-    def get(self):
+    async def get(self):
         # ask discovery where it located externally
         # so console can access it
-        discovery = yield common.discover.cache.get_service("discovery", "external")
+        discovery = await discover.cache.get_service("discovery", "external")
 
         self.render(
             "template/console.html",
@@ -184,13 +173,12 @@ class DebugConsoleHandler(AdminHandler):
 
 
 class SelectGamespaceHandler(AdminHandler):
-    @coroutine
-    def get(self):
+    async def get(self):
 
         login_client = LoginClient(self.application.cache)
 
         try:
-            gamespaces = yield login_client.get_gamespaces()
+            gamespaces = await login_client.get_gamespaces()
         except LoginClientError as e:
             raise a.ActionError(e.message)
 
@@ -199,8 +187,7 @@ class SelectGamespaceHandler(AdminHandler):
             gamespaces=gamespaces,
             selected=self.gamespace)
 
-    @coroutine
-    def post(self):
+    async def post(self):
         gamespace = self.get_argument("gamespace")
 
         self.set_cookie("gamespace", gamespace)
@@ -211,7 +198,7 @@ class SelectGamespaceHandler(AdminHandler):
             login_client = LoginClient(self.application.cache)
 
             try:
-                current_gamespace = yield login_client.find_gamespace(gamespace)
+                current_gamespace = await login_client.find_gamespace(gamespace)
             except LoginClientError as e:
                 raise HTTPError(e.code, e.message)
 
@@ -226,9 +213,8 @@ class SelectGamespaceHandler(AdminHandler):
 
 
 class ServiceAPIHandler(AuthenticatedHandler):
-    @coroutine
     @scoped(scopes=["admin"])
-    def get(self):
+    async def get(self):
 
         context = self.get_argument("context", "{}")
         service_id = self.get_argument("service")
@@ -243,7 +229,7 @@ class ServiceAPIHandler(AuthenticatedHandler):
         self.set_header("X-Api-Action", ujson.dumps(action))
 
         try:
-            data = yield self.application.internal.get(
+            data = await Internal().get(
                 service_id,
                 "@admin", {
                     "context": ujson.dumps(context_data),
@@ -272,9 +258,8 @@ class ServiceAPIHandler(AuthenticatedHandler):
 
         self.dumps(data)
 
-    @coroutine
     @scoped(scopes=["admin"])
-    def post(self):
+    async def post(self):
 
         arguments = {
             k: self.get_argument(k)
@@ -302,7 +287,7 @@ class ServiceAPIHandler(AuthenticatedHandler):
         output = ujson.dumps(arguments)
 
         try:
-            data = yield self.application.internal.post(
+            data = await Internal().post(
                 service_id,
                 "@admin", {
                     "context": ujson.dumps(context_data),
@@ -313,8 +298,7 @@ class ServiceAPIHandler(AuthenticatedHandler):
                 })
 
         except InternalError as e:
-
-            if e.code == common.admin.REDIRECT:
+            if e.code == admin.REDIRECT:
                 response = e.response
                 data = ujson.loads(response.body)
 
@@ -329,7 +313,7 @@ class ServiceAPIHandler(AuthenticatedHandler):
                     "context": ujson.dumps(context_data)
                 }
 
-                self.redirect("/api?" + urllib.urlencode(redirect_data))
+                self.redirect("/api?" + parse.urlencode(redirect_data))
                 return
 
             if e.code == 401:
@@ -342,7 +326,6 @@ class ServiceAPIHandler(AuthenticatedHandler):
                 raise HTTPError(403, "Forbidden. Such access required: '{0}'.".format(scopes))
 
             raise HTTPError(e.code, e.body, reason="Action Error")
-
         self.dumps(data)
 
 
@@ -360,31 +343,28 @@ class ServiceUploadAdminHandler(AdminHandler):
         self.context = {}
         self.args = {}
 
-    @coroutine
-    def __producer__(self, write):
+    async def __producer__(self, write):
         while True:
-            chunk = yield self.chunks.get()
+            chunk = await self.chunks.get()
             if chunk is None:
                 return
-            yield write(chunk)
+            await write(chunk)
 
     def need_profile(self):
         return False
 
-    @coroutine
-    def data_received(self, chunk):
+    async def data_received(self, chunk):
         self.bytes_received += len(chunk)
-        yield self.chunks.put(chunk)
+        await self.chunks.put(chunk)
 
     def write_error(self, status_code, **kwargs):
         RequestHandler.write_error(self, status_code, **kwargs)
 
-    @coroutine
-    def upload(self, service_location, action):
+    async def upload(self, service_location, action):
         self.client = AsyncHTTPClient()
 
         request = HTTPRequest(
-            url=service_location + "/@admin_upload?" + urllib.urlencode({
+            url=service_location + "/@admin_upload?" + parse.urlencode({
                 "action": action,
                 "access_token": self.token.key,
                 "context": ujson.dumps(self.context),
@@ -399,7 +379,7 @@ class ServiceUploadAdminHandler(AdminHandler):
             request_timeout=2400)
 
         try:
-            response = yield self.client.fetch(request)
+            response = await self.client.fetch(request)
         except Exception as e:
             logging.exception("Failed to upload file to service {0}".format(
                 service_location
@@ -408,8 +388,7 @@ class ServiceUploadAdminHandler(AdminHandler):
         else:
             self.send_complete.set_result(response)
 
-    @coroutine
-    def prepared(self, *args, **kwargs):
+    async def prepared(self, *args, **kwargs):
 
         service_id = self.get_argument("service")
         action = self.get_argument("action")
@@ -433,33 +412,31 @@ class ServiceUploadAdminHandler(AdminHandler):
             raise HTTPError(400, "No content-length")
 
         try:
-            service_location = yield common.discover.cache.get_service(service_id)
-        except common.discover.DiscoveryError as e:
+            service_location = await discover.cache.get_service(service_id)
+        except discover.DiscoveryError as e:
             raise HTTPError(e.code, "Failed to discover '{0}': ".format(service_id) + e.message)
 
         IOLoop.current().add_callback(self.upload, service_location, action)
 
-    @coroutine
     @scoped(scopes=["admin"], method="access_restricted", ask_also=["profile", "profile_write"])
-    def put(self):
+    async def put(self):
 
         if str(self.bytes_received) != str(self.content_length):
             raise HTTPError(400, "Did not receive data as expected")
 
-        yield self.chunks.put(None)
+        await self.chunks.put(None)
 
         try:
-            response = yield self.send_complete
+            response = await self.send_complete
         except tornado.httpclient.HTTPError as e:
             self.set_status(e.code, e.message)
             self.finish(e.response.body if e.response else None)
         else:
             self.dumps(response)
 
-    @coroutine
-    def prepare(self):
+    async def prepare(self):
         self.request.connection.set_max_body_size(1073741824)
-        yield super(ServiceUploadAdminHandler, self).prepare()
+        await super(ServiceUploadAdminHandler, self).prepare()
 
 
 class ServiceAdminHandler(AdminHandler):
@@ -471,9 +448,8 @@ class ServiceAdminHandler(AdminHandler):
 
         self.set_cookie("notice", notice)
 
-    @coroutine
     @scoped(scopes=["admin"], method="access_restricted", ask_also=["profile", "profile_write", "admin_audit_log"])
-    def get(self, current_service, action):
+    async def get(self, current_service, action):
 
         context = self.get_argument("context", "{}")
 
@@ -485,7 +461,7 @@ class ServiceAdminHandler(AdminHandler):
         self.current_service = current_service
 
         try:
-            data = yield self.application.internal.get(
+            data = await Internal().get(
                 current_service,
                 "@admin",
                 {
@@ -509,22 +485,21 @@ class ServiceAdminHandler(AdminHandler):
                 return
 
             if e.code == 404:
-                self.render(
-                    "template/error.html",
-                    error_title="Cannot administrate this page.",
-                    error_description="Service <span class=\"badge\">{0}</span> has no api "
-                                      "<span class=\"badge\">{1}</span> to administrate.".format(
-                        current_service, action))
+                error_description = "Service <span class=\"badge\">{0}</span> has no api " \
+                                    "<span class=\"badge\">{1}</span> to administrate.".format(current_service, action)
 
+                self.render("template/error.html",
+                            error_title="Cannot administrate this page.",
+                            error_description=error_description)
                 return
 
-            if e.code == common.admin.BINARY_FILE:
+            if e.code == admin.BINARY_FILE:
                 filename = e.response.headers["File-Name"]
                 self.set_header("Content-Disposition", "attachment; filename=" + str(filename))
                 self.write(e.response.body)
                 return
 
-            if e.code == common.admin.REDIRECT:
+            if e.code == admin.REDIRECT:
                 response = e.response
                 data = ujson.loads(response.body)
 
@@ -540,7 +515,7 @@ class ServiceAdminHandler(AdminHandler):
                     self.__store_notice__(data["notice"], "info")
 
                 url = "/service/" + redirect_service + "/" + redirect_to
-                self.redirect(url + "?" + urllib.urlencode(redirect_data))
+                self.redirect(url + "?" + parse.urlencode(redirect_data))
                 return
 
             if e.code == 599:
@@ -553,19 +528,18 @@ class ServiceAdminHandler(AdminHandler):
                     """.format(current_service))
                 return
 
-            if e.code == common.admin.ACTION_ERROR:
+            if e.code == admin.ACTION_ERROR:
                 response = e.response
                 data = ujson.loads(response.body)
             else:
-                raise HTTPError(e.code, e.body)
-
-        services = self.application.admin
+                raise HTTPError(e.code, e.body.decode("utf-8"))
 
         notice = self.get_cookie("notice")
         if notice:
+            # noinspection PyBroadException
             try:
                 notice = ujson.loads(base64.b64decode(notice))
-            except:
+            except Exception:
                 notice = None
 
             self.clear_cookie("notice")
@@ -577,8 +551,7 @@ class ServiceAdminHandler(AdminHandler):
             context=context_data,
             notice=notice)
 
-    @coroutine
-    def __parse_audit__(self, headers, service_name, service_action):
+    async def __parse_audit__(self, headers, service_name, service_action):
         log = headers.get("Audit-Log", None)
         if not log:
             return
@@ -602,7 +575,7 @@ class ServiceAdminHandler(AdminHandler):
             if not action_icon or action_payload is None or not action_message:
                 return
 
-            yield audit.audit_log(gamespace_id, service_name, service_action, action_icon,
+            await audit.audit_log(gamespace_id, service_name, service_action, action_icon,
                                   action_message, action_payload, account_id)
 
     def access_restricted(self, scopes=None, ask_also=None):
@@ -625,9 +598,8 @@ class ServiceAdminHandler(AdminHandler):
 
         super(ServiceAdminHandler, self).write_error(status_code, **kwargs)
 
-    @coroutine
     @scoped(scopes=["admin"], method="access_restricted", ask_also=["profile", "profile_write"])
-    def post(self, service_id, action):
+    async def post(self, service_id, action):
 
         arguments = {
             k: self.get_argument(k)
@@ -649,7 +621,7 @@ class ServiceAdminHandler(AdminHandler):
         arguments_data = ujson.dumps(arguments)
 
         try:
-            data, headers = yield self.application.internal.post(
+            data, headers = await Internal().post(
                 service_id,
                 "@admin", {
                     "context": ujson.dumps(context_data),
@@ -662,7 +634,7 @@ class ServiceAdminHandler(AdminHandler):
             data = {}
 
             if e.response is not None:
-                yield self.__parse_audit__(e.response.headers, service_id, action)
+                await self.__parse_audit__(e.response.headers, service_id, action)
 
             if ajax:
                 self.set_status(e.code, "Error")
@@ -672,13 +644,13 @@ class ServiceAdminHandler(AdminHandler):
             else:
                 do_raise = True
 
-                if e.code == common.admin.BINARY_FILE:
+                if e.code == admin.BINARY_FILE:
                     filename = e.response.headers["File-Name"]
                     self.set_header("Content-Disposition", "attachment; filename=" + str(filename))
                     self.write(e.response.body)
                     return
 
-                if e.code == common.admin.REDIRECT:
+                if e.code == admin.REDIRECT:
                     response = e.response
                     data = ujson.loads(response.body)
 
@@ -694,10 +666,10 @@ class ServiceAdminHandler(AdminHandler):
                         self.__store_notice__(data["notice"], "info")
 
                     url = "/service/" + redirect_service + "/" + redirect_to
-                    self.redirect(url + "?" + urllib.urlencode(redirect_data))
+                    self.redirect(url + "?" + parse.urlencode(redirect_data))
                     return
 
-                if e.code == common.admin.ACTION_ERROR:
+                if e.code == admin.ACTION_ERROR:
                     do_raise = False
 
                     response = e.response
@@ -735,7 +707,7 @@ class ServiceAdminHandler(AdminHandler):
                 if do_raise:
                     raise HTTPError(e.code, e.body)
         else:
-            yield self.__parse_audit__(headers, service_id, action)
+            await self.__parse_audit__(headers, service_id, action)
 
         if ajax:
             self.dumps(data)
@@ -767,8 +739,7 @@ class ServiceWSHandler(CookieAuthenticatedWSHandler):
 
         logging.error(reason)
 
-    @coroutine
-    def on_opened(self, *args, **kwargs):
+    async def on_opened(self, *args, **kwargs):
 
         service_id = self.get_argument("service")
         context = self.get_argument("context")
@@ -782,7 +753,7 @@ class ServiceWSHandler(CookieAuthenticatedWSHandler):
         logging.info("New ws connection to service '{0}'".format(service_id))
 
         try:
-            service_location = yield common.discover.cache.get_service(service_id)
+            service_location = await discover.cache.get_service(service_id)
         except DiscoveryError as e:
             raise HTTPError(e.code, "Failed to discover service: " + service_id)
 
@@ -798,7 +769,7 @@ class ServiceWSHandler(CookieAuthenticatedWSHandler):
 
         service_location = schemes[scheme] + ":" + rest
 
-        destination = service_location + "/@stream_admin?" + urllib.urlencode(
+        destination = service_location + "/@stream_admin?" + parse.urlencode(
             {
                 "context": ujson.dumps(context),
                 "action": action,
@@ -807,10 +778,10 @@ class ServiceWSHandler(CookieAuthenticatedWSHandler):
 
         while True:
             try:
-                self.conn = yield tornado.websocket.websocket_connect(destination)
+                self.conn = await tornado.websocket.websocket_connect(destination)
             except tornado.httpclient.HTTPError as e:
 
-                if e.code == common.admin.REDIRECT:
+                if e.code == admin.REDIRECT:
                     response = e.response
                     data = ujson.loads(response.body)
 
@@ -818,10 +789,10 @@ class ServiceWSHandler(CookieAuthenticatedWSHandler):
                     host = data["host"]
                     context = data["context"]
 
-                    parsed = urlsplit(host)
+                    parsed = parse.urlsplit(host)
                     protocol = "wss" if parsed.scheme == "https" else "ws"
 
-                    destination = protocol + "://" + parsed.netloc + parsed.path + "/@stream_admin?" + urllib.urlencode(
+                    destination = protocol + "://" + parsed.netloc + parsed.path + "/@stream_admin?" + parse.urlencode(
                         {
                             "context": context,
                             "action": action,
@@ -835,13 +806,12 @@ class ServiceWSHandler(CookieAuthenticatedWSHandler):
                     self.close(e.code, str(reason))
                     return
             else:
-                yield self.read_messages(service_id, action)
+                await self.read_messages(service_id, action)
                 break
 
-    @coroutine
-    def read_messages(self, service_id, action):
+    async def read_messages(self, service_id, action):
         while True:
-            message = yield self.conn.read_message()
+            message = await self.conn.read_message()
 
             if message is None:
                 if self.conn.close_code:
@@ -856,17 +826,15 @@ class ServiceWSHandler(CookieAuthenticatedWSHandler):
         if self.conn is not None:
             self.conn.write_message(message)
 
-    @coroutine
-    def on_closed(self):
+    async def on_closed(self):
         logging.info("Service WS connection closed")
         if self.conn is not None:
             self.conn.close(self.close_code, self.close_reason)
 
 
 class ServiceProxyHandler(AuthenticatedHandler):
-    @coroutine
     @scoped(scopes=["admin"])
-    def get(self, service_id, path):
+    async def get(self, service_id, path):
 
         arguments = {
             k: self.get_argument(k)
@@ -876,15 +844,14 @@ class ServiceProxyHandler(AuthenticatedHandler):
         arguments["access_token"] = self.token.key
 
         try:
-            data = yield self.application.internal.get(service_id, path, arguments, network="external")
+            data = await Internal().get(service_id, path, arguments, network="external")
         except InternalError as e:
             raise HTTPError(e.code, e.body)
 
         self.dumps(data)
 
-    @coroutine
     @scoped(scopes=["admin"])
-    def post(self, service_id, path):
+    async def post(self, service_id, path):
 
         arguments = {
             k: self.get_argument(k)
@@ -894,7 +861,7 @@ class ServiceProxyHandler(AuthenticatedHandler):
         arguments["access_token"] = self.token.key
 
         try:
-            data = yield self.application.internal.post(service_id, path, arguments, network="external")
+            data = await Internal().post(service_id, path, arguments, network="external")
         except InternalError as e:
             raise HTTPError(e.code, e.body)
 
@@ -902,32 +869,28 @@ class ServiceProxyHandler(AuthenticatedHandler):
 
 
 class IndexHandler(AdminHandler):
-    @coroutine
-    @scoped(scopes=["admin"],
-            method="access_restricted",
-            ask_also=["profile", "profile_write", "admin_audit_log"])
-    def get(self):
+    @scoped(scopes=["admin"], method="access_restricted", ask_also=["profile", "profile_write", "admin_audit_log"])
+    async def get(self):
         self.render("template/index.html")
 
 
 class AuditLogHandler(a.AdminController):
     ENTRIES_PER_PAGE = 50
 
-    @coroutine
-    def get(self, page=1):
+    async def get(self, page=1):
         audit = self.application.audit
 
         offset = (int(page) - 1) * AuditLogHandler.ENTRIES_PER_PAGE
         limit = AuditLogHandler.ENTRIES_PER_PAGE
 
         try:
-            entries, total_count = yield audit.list_paged_count(self.gamespace, offset=offset, limit=limit)
+            entries, total_count = await audit.list_paged_count(self.gamespace, offset=offset, limit=limit)
         except AuditLogError as e:
             raise a.ActionError(e.message)
 
         pages = int(math.ceil(float(total_count) / float(AuditLogHandler.ENTRIES_PER_PAGE)))
 
-        services_list = yield self.application.admin.list_services_with_metadata(self.token.key)
+        services_list = await self.application.admin.list_services_with_metadata(self.token.key)
 
         author_ids = set()
         for entry in entries:
@@ -943,13 +906,13 @@ class AuditLogHandler(a.AdminController):
         internal = Internal()
 
         try:
-            profiles = yield internal.send_request(
+            profiles = await internal.send_request(
                 "profile", "mass_profiles",
                 accounts=author_ids,
                 gamespace=self.gamespace,
                 action="get_public",
                 profile_fields=["name"])
-        except InternalError as e:
+        except InternalError:
             pass  # well
         else:
             for entry in entries:
@@ -957,10 +920,10 @@ class AuditLogHandler(a.AdminController):
                 if profile:
                     entry.author_name = profile.get("name")
 
-        raise Return({
+        return {
             "entries": entries,
             "pages": pages
-        })
+        }
 
     def access_scopes(self):
         return ["admin_audit_log"]
@@ -971,7 +934,7 @@ class AuditLogHandler(a.AdminController):
 
         return {
             key.replace("_", " ").title(): value
-            for key, value in changes.iteritems()
+            for key, value in changes.items()
         }
 
     def render(self, data):
