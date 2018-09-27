@@ -32,6 +32,9 @@ class AdminServer(server.Server):
         self.admin = AdminModel(self, self.cache)
         self.external_auth_location = None
 
+    def get_models(self):
+        return [self.admin, self.audit]
+
     def get_auth_callback(self):
         return h.AdminAuthCallbackHandler
 

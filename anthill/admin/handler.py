@@ -444,7 +444,7 @@ class ServiceAdminHandler(AdminHandler):
         notice = base64.b64encode(ujson.dumps({
             "kind": kind,
             "message": message
-        }))
+        }).encode())
 
         self.set_cookie("notice", notice)
 
