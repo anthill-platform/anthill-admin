@@ -7,6 +7,9 @@ DEPENDENCIES = [
 
 setup(
     name='anthill-admin',
+    package_data={
+      "anthill.admin": ["anthill/admin/sql", "anthill/admin/static"]
+    },
     setup_requires=["pypigit-version"],
     git_version="0.1.0",
     description='Administration service for Anthill platform',
