@@ -65,7 +65,7 @@ class AuditLogModel(Model):
         except DatabaseError as e:
             raise AuditLogError(500, e.args[1])
         else:
-            return map(AuditLogActionAdapter, entries)
+            return list(map(AuditLogActionAdapter, entries))
 
     async def list_paged_count(self, gamespace_id, offset=0, limit=100):
         try:
@@ -88,4 +88,4 @@ class AuditLogModel(Model):
         except DatabaseError as e:
             raise AuditLogError(500, e.args[1])
         else:
-            return map(AuditLogActionAdapter, entries), total_rows
+            return list(map(AuditLogActionAdapter, entries)), total_rows
