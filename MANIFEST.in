@@ -1,2 +1,3 @@
 graft anthill/admin/sql
 graft anthill/admin/static
+graft anthill/admin/template
