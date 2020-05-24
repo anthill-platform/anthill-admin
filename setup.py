@@ -1,8 +1,8 @@
 
-from setuptools import setup, find_packages
+from setuptools import setup, find_namespace_packages
 
 DEPENDENCIES = [
-    "anthill-common"
+    "anthill-common>=0.2.4"
 ]
 
 setup(
@@ -10,16 +10,15 @@ setup(
     package_data={
       "anthill.admin": ["anthill/admin/sql", "anthill/admin/static"]
     },
-    setup_requires=["pypigit-version"],
-    git_version="0.1.0",
-    description='Administration service for Anthill platform',
+    version='0.2',
+    description='Administration service for Anthill Platform',
     author='desertkun',
     license='MIT',
     author_email='desertkun@gmail.com',
     url='https://github.com/anthill-platform/anthill-admin',
     namespace_packages=["anthill"],
     include_package_data=True,
-    packages=find_packages(),
+    packages=find_namespace_packages(include=["anthill.*"]),
     zip_safe=False,
     install_requires=DEPENDENCIES
 )
