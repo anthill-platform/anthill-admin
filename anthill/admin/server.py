@@ -1,6 +1,7 @@
 
 from anthill.common.options import options
 from anthill.common import server, database, access, keyvalue, handler, retry
+from anthill.common.discover import DiscoveryError
 
 from . import handler as h
 from . import options as _opts
@@ -9,6 +10,7 @@ from . model.audit import AuditLogModel
 from . model.admin import AdminModel
 
 import logging
+from tornado.ioloop import IOLoop
 
 
 class AdminServer(server.Server):
@@ -67,12 +69,14 @@ class AdminServer(server.Server):
         async def locate():
             return await self.get_auth_location("external")
 
-        self.external_auth_location = await locate()
-
-        if self.external_auth_location is None:
+        try:
+            self.external_auth_location = await locate()
+        except DiscoveryError:
             logging.error("Failed to locate auth 'external'.")
-        else:
-            logging.info("Located auth service: {0}".format(self.external_auth_location))
+            IOLoop.current().stop()
+            return
+
+        logging.info("Located auth service: {0}".format(self.external_auth_location))
 
 
 if __name__ == "__main__":
